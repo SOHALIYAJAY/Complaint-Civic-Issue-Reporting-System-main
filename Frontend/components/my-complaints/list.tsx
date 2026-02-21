@@ -1,118 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+// import { useState } from 'react'
 import { ChevronRight, AlertTriangle, MapPin, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Complaint {
   id: string
   title: string
-  category: string
-  location: string
-  dateSubmitted: string
-  status: 'open' | 'in-progress' | 'resolved' | 'pending' | 'rejected'
-  priority: 'low' | 'medium' | 'high'
-  description: string
-  imageUrl?: string
+  Category: string
+  location_address: string
+  current_time: string
+  status: 'Pending' | 'in-progress' | 'resolved'
+  priority_level: 'Low' | 'Medium' | 'High'
+  Description: string
+  image_video?: string
   slaCompliance: number
   officerRemarks?: string
   timeline: Array<{ step: string; date: string; status: 'completed' | 'pending' }>
   estimatedResolution?: string
 }
 
-const mockComplaints: Complaint[] = [
-  {
-    id: 'CMP-2024-001234',
-    title: 'Broken Road Surface in Sector 5',
-    category: 'roads',
-    location: 'Mahatma Gandhi Rd, Ahmedabad',
-    dateSubmitted: '2024-02-10',
-    status: 'resolved',
-    priority: 'high',
-    description: 'Large pothole creating safety hazard for vehicles and pedestrians...',
-    slaCompliance: 95,
-    officerRemarks: 'Road resurfacing completed on schedule',
-    timeline: [
-      { step: 'Complaint Filed', date: '2024-02-10', status: 'completed' },
-      { step: 'Under Review', date: '2024-02-11', status: 'completed' },
-      { step: 'Work Assigned', date: '2024-02-12', status: 'completed' },
-      { step: 'In Progress', date: '2024-02-15', status: 'completed' },
-      { step: 'Resolved', date: '2024-02-20', status: 'completed' },
-    ],
-    estimatedResolution: 'Completed',
-  },
-  {
-    id: 'CMP-2024-001233',
-    title: 'Water Leakage on CG Road',
-    category: 'water',
-    location: 'CG Road, Ahmedabad',
-    dateSubmitted: '2024-02-12',
-    status: 'in-progress',
-    priority: 'high',
-    description: 'Water pipeline leakage causing water wastage...',
-    slaCompliance: 92,
-    officerRemarks: 'Repair work in progress',
-    timeline: [
-      { step: 'Complaint Filed', date: '2024-02-12', status: 'completed' },
-      { step: 'Under Review', date: '2024-02-12', status: 'completed' },
-      { step: 'Work Assigned', date: '2024-02-13', status: 'completed' },
-      { step: 'In Progress', date: '2024-02-14', status: 'pending' },
-      { step: 'Resolved', date: '', status: 'pending' },
-    ],
-    estimatedResolution: '2-3 days',
-  },
-  {
-    id: 'CMP-2024-001232',
-    title: 'Missing Drain Cover in Sector 7',
-    category: 'drainage',
-    location: 'Sector 7, Ahmedabad',
-    dateSubmitted: '2024-02-08',
-    status: 'pending',
-    priority: 'medium',
-    description: 'Drain cover missing creating safety hazard...',
-    slaCompliance: 88,
-    timeline: [
-      { step: 'Complaint Filed', date: '2024-02-08', status: 'completed' },
-      { step: 'Under Review', date: '2024-02-09', status: 'pending' },
-      { step: 'Work Assigned', date: '', status: 'pending' },
-      { step: 'In Progress', date: '', status: 'pending' },
-      { step: 'Resolved', date: '', status: 'pending' },
-    ],
-    estimatedResolution: '5-7 days',
-  },
-  {
-    id: 'CMP-2024-001231',
-    title: 'Street Light Not Working',
-    category: 'lighting',
-    location: 'University Road, Ahmedabad',
-    dateSubmitted: '2024-02-14',
-    status: 'open',
-    priority: 'low',
-    description: 'Street light in front of college building not working...',
-    slaCompliance: 85,
-    timeline: [
-      { step: 'Complaint Filed', date: '2024-02-14', status: 'completed' },
-      { step: 'Under Review', date: '', status: 'pending' },
-      { step: 'Work Assigned', date: '', status: 'pending' },
-      { step: 'In Progress', date: '', status: 'pending' },
-      { step: 'Resolved', date: '', status: 'pending' },
-    ],
-    estimatedResolution: '10-14 days',
-  },
-]
-
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-  open: { bg: 'bg-blue-500/10', text: 'text-blue-700', border: 'border-blue-500/20' },
+   Pending: { bg: 'bg-orange-500/10', text: 'text-orange-700', border: 'border-orange-500/20' },
   'in-progress': { bg: 'bg-purple-500/10', text: 'text-purple-700', border: 'border-purple-500/20' },
   resolved: { bg: 'bg-green-500/10', text: 'text-green-700', border: 'border-green-500/20' },
-  pending: { bg: 'bg-orange-500/10', text: 'text-orange-700', border: 'border-orange-500/20' },
-  rejected: { bg: 'bg-red-500/10', text: 'text-red-700', border: 'border-red-500/20' },
+
 }
 
 const priorityColors: Record<string, string> = {
-  low: 'bg-blue-100 text-blue-800',
-  medium: 'bg-orange-100 text-orange-800',
-  high: 'bg-red-100 text-red-800',
+  Low: 'bg-blue-100 text-blue-800',
+  Medium: 'bg-orange-100 text-orange-800',
+  High: 'bg-red-100 text-red-800',
 }
 
 export default function ComplaintsList({
@@ -120,24 +39,52 @@ export default function ComplaintsList({
   searchTerm,
   categoryFilter,
   sortBy,
+  dateRange,
   onSelectComplaint,
 }: {
   filterStatus: string
   searchTerm: string
   categoryFilter: string
   sortBy: string
+  dateRange: string
   onSelectComplaint: (complaint: Complaint) => void
+  complaints: Complaint[]
 }) {
   const [currentPage, setCurrentPage] = useState(1)
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/getcomplaint/`)
+      .then((res) => res.json())
+      .then((data) => {
+        setComplaints(data)
+      })
+      .catch((error) => {
+        console.error("Error fetching complaints:", error)
+      })
+  }, [])
+
   const itemsPerPage = 6
 
-  let filteredComplaints = mockComplaints
-    .filter(c => filterStatus === 'all' || c.status === filterStatus)
-    .filter(c => categoryFilter === 'all' || c.category === categoryFilter)
+  const getDateFilter = (days: string) => {
+    if (days === 'all') return null
+    const date = new Date()
+    date.setDate(date.getDate() - parseInt(days))
+    return date
+  }
+
+  let filteredComplaints = complaints
+    .filter(c => filterStatus === 'all' || c.status.toLowerCase() === filterStatus.toLowerCase())
+    .filter(c => categoryFilter === 'all' || c.Category === categoryFilter)
+    .filter(c => {
+      const cutoffDate = getDateFilter(sortBy === 'priority' ? 'all' : sortBy === 'latest' && complaints.length > 0 ? 'all' : 'all')
+      if (!cutoffDate) return true
+      return new Date(c.current_time) >= cutoffDate
+    })
     .filter(
       c =>
-        c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.title.toLowerCase().includes(searchTerm.toLowerCase())
+        String(c.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(c.title).toLowerCase().includes(searchTerm.toLowerCase())
     )
 
   if (sortBy === 'oldest') {
@@ -145,7 +92,12 @@ export default function ComplaintsList({
   } else if (sortBy === 'priority') {
     const priorityOrder = { high: 0, medium: 1, low: 2 }
     filteredComplaints = [...filteredComplaints].sort(
-      (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
+      (a, b) => priorityOrder[a.priority_level.toLowerCase() as keyof typeof priorityOrder] - priorityOrder[b.priority_level.toLowerCase() as keyof typeof priorityOrder]
+    )
+  } else {
+    // Default: latest first (most recent first)
+    filteredComplaints = [...filteredComplaints].sort(
+      (a, b) => new Date(b.current_time).getTime() - new Date(a.current_time).getTime()
     )
   }
 
@@ -192,8 +144,8 @@ export default function ComplaintsList({
                       </h3>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${priorityColors[complaint.priority]}`}>
-                        {complaint.priority.charAt(0).toUpperCase() + complaint.priority.slice(1)}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${priorityColors[complaint.priority_level]}`}>
+                        {complaint.priority_level.charAt(0).toUpperCase() + complaint.priority_level.slice(1)}
                       </span>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold border ${
@@ -206,17 +158,17 @@ export default function ComplaintsList({
                   </div>
 
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {complaint.description}
+                    {complaint.Description}
                   </p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground truncate">{complaint.location}</span>
+                      <span className="text-muted-foreground truncate">{complaint.location_address}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground">{new Date(complaint.dateSubmitted).toLocaleDateString()}</span>
+                      <span className="text-muted-foreground">{new Date(complaint.current_time).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-medium text-foreground">SLA:</span>

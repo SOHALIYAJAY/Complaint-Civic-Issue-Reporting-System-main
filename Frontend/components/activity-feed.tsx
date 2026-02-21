@@ -1,22 +1,22 @@
-"use client"
-import { useEffect, useState } from "react"
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Clock, MapPin, User } from 'lucide-react'
 
 interface Complaint {
-  id: number
+  id: string
   title: string
   Description: string
   location_address: string
-  status?: 'open' | 'in-progress' | 'resolved'
+  status: 'Pending'| 'in-progress' | 'resolved'
   Category: string
-  current_time?: string
-  priority_level?: 'High' | 'Medium' | 'Low'
+  current_time: string
+  priority_level: 'Low' | 'Medium' | 'High'
 }
 
-
 const statusConfig = {
-  open: { color: 'bg-red-50 text-red-700 border-red-200', label: 'Open', icon: '🔴' },
+  Pending: { color: 'bg-red-50 text-red-700 border-red-200', label: 'Open', icon: '🔴' },
   'in-progress': { color: 'bg-amber-50 text-amber-700 border-amber-200', label: 'In Progress', icon: '🟡' },
   resolved: { color: 'bg-green-50 text-green-700 border-green-200', label: 'Resolved', icon: '🟢' },
 }
@@ -28,51 +28,19 @@ const priorityConfig = {
 }
 
 export default function ActivityFeed() {
-const [complaints, setComplaints] = useState<Complaint[]>([])
-
-  // Helper function to safely get status config with fallback
-  const getStatusConfig = (status: string | undefined) => {
-    const validStatus = (status as keyof typeof statusConfig) || 'open'
-    return statusConfig[validStatus] || statusConfig['open']
-  }
-
-  // Helper function to safely get priority config with fallback
-  const getPriorityConfig = (priority: string | undefined) => {
-    const validPriority = (priority as keyof typeof priorityConfig) || 'Low'
-    return priorityConfig[validPriority] || priorityConfig['Low']
-  }
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 useEffect(() => {
-  fetch("http://127.0.0.1:8000/api/getcomplaint/", {
-    headers: {
-      'Accept': 'application/json',
-    },
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        const text = await res.text()
-        console.error('API Error Response:', text.substring(0, 500))
-        throw new Error(`API returned ${res.status}`)
-      }
-      const text = await res.text()
-      try {
-        return JSON.parse(text)
-      } catch (e) {
-        console.error('Failed to parse JSON:', text.substring(0, 500))
-        throw new Error('Invalid JSON response from API')
-      }
+  fetch(`${API_BASE_URL}/api/getcomplaint/`)
+    .then((res) => res.json())
+    .then((data) => { 
+      setComplaints(data)
     })
-    .then(data => {
-      console.log('API Response:', data)
-      console.log('Sample complaint structure:', data?.[0])
-      setComplaints(Array.isArray(data) ? data : data.results || [])
-    })
-    .catch(error => {
-      console.error('Failed to fetch complaints:', error)
-      setComplaints([])
+    .catch((error) => {
+      console.error("Error fetching complaints:", error)
     })
 }, [])
-
   return (
     <section className="py-16 sm:py-24 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -86,7 +54,7 @@ useEffect(() => {
         </div>
 
         <div className="grid gap-4">
-          {complaints.map((complaint,index) => (
+          {complaints.map((complaint, index) => (
             <div
               key={complaint.id}
               className="group bg-white rounded-lg border border-border hover:border-primary/50 hover:shadow-lg transition-all duration-300 overflow-hidden hover:translate-y-[-2px] slide-in-up"
@@ -98,7 +66,7 @@ useEffect(() => {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">{getStatusConfig(complaint.status).icon}</span>
+                      <span className="text-2xl">{statusConfig[complaint.status].icon}</span>
                       <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
                         {complaint.title}
                       </h3>
@@ -107,11 +75,11 @@ useEffect(() => {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Badge className={`${getStatusConfig(complaint.status).color} border`}>
-                      {getStatusConfig(complaint.status).label}
+                    <Badge className={`${statusConfig[complaint.status].color} border`}>
+                      {statusConfig[complaint.status].label}
                     </Badge>
-                    <Badge className={getPriorityConfig(complaint.priority_level).color}>
-                      {getPriorityConfig(complaint.priority_level).label}
+                    <Badge className={priorityConfig[complaint.priority_level].color}>
+                      {priorityConfig[complaint.priority_level].label}
                     </Badge>
                   </div>
                 </div>

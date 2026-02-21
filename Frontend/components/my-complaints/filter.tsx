@@ -10,6 +10,8 @@ interface ComplaintsFilterProps {
   setCategoryFilter: (category: string) => void
   sortBy: string
   setSortBy: (sort: string) => void
+  dateRange: string
+  setDateRange: (range: string) => void
 }
 
 export default function ComplaintsFilter({
@@ -21,6 +23,8 @@ export default function ComplaintsFilter({
   setCategoryFilter,
   sortBy,
   setSortBy,
+  dateRange,
+  setDateRange,
 }: ComplaintsFilterProps) {
   return (
     <section className="py-8 border-b border-border">
@@ -49,11 +53,10 @@ export default function ComplaintsFilter({
                 className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
               >
                 <option value="all">All Statuses</option>
-                <option value="open">Open</option>
+                <option value="pending">Pending</option>
                 <option value="in-progress">In Progress</option>
                 <option value="resolved">Resolved</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
+                {/* <option value="rejected">Rejected</option> */}
               </select>
             </div>
 
@@ -66,23 +69,27 @@ export default function ComplaintsFilter({
                 className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
               >
                 <option value="all">All Categories</option>
-                <option value="roads">Roads & Infrastructure</option>
-                <option value="water">Water Supply</option>
-                <option value="sanitation">Sanitation</option>
-                <option value="lighting">Street Lighting</option>
-                <option value="drainage">Drainage</option>
-                <option value="parking">Parking</option>
+                <option value="Roads & Infrastructure">Roads & Infrastructure</option>
+                <option value="Water Supply">Water Supply</option>
+                <option value="Sanitation">Sanitation</option>
+                <option value="Street Lighting">Street Lighting</option>
+                <option value="Drainage">Drainage</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
             {/* Date Range Filter */}
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">Date Range</label>
-              <select className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all">
-                <option>Last 7 days</option>
-                <option>Last 30 days</option>
-                <option>Last 3 months</option>
-                <option>All time</option>
+              <select
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+              >
+                <option value="all">All time</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 3 months</option>
               </select>
             </div>
 
@@ -110,6 +117,7 @@ export default function ComplaintsFilter({
                 setFilterStatus('all')
                 setCategoryFilter('all')
                 setSortBy('latest')
+                setDateRange('all')
               }}
               className="border-border hover:bg-muted"
             >

@@ -16,11 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from complaints.views import raisecomplaint
+from complaints.views import createcomplaint
 from Civic import views
+from Civic.views import getcomplaint
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('raise-complaint/',raisecomplaint,name='raisecomplaint'),
+    path('api/raisecomplaint/',createcomplaint,name='raisecomplaint'),
     # path('api/homepage/', views.homepage_data),
-    path('api/getcomplaint/',views.getcomplaint.as_view(),name='getcomplaint')
+    path('api/getcomplaint/',getcomplaint.as_view(),name='getcomplaint'),
+    path('complaintsinfo/',views.complaintsinfo,name='complaintsinfo'),
+    path('api/complaintDetails/<int:pk>',views.complaintDetails,name='complaintDetails')
 ]
