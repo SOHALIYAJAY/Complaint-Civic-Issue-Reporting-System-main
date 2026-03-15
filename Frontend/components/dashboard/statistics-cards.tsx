@@ -4,17 +4,13 @@ import { AlertCircle, CheckCircle, Clock, TrendingUp } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 interface StatCard {
-  total_complaints?: number
-  Active_complaints?: number
-  Resolved_complaints?: number
-  SLA_compliance?: number
-  Pending?: number
   label: string
   value: number
   icon: React.ReactNode
   bgColor: string
   textColor: string
   borderColor: string
+  suffix?: string
 }
 
 function AnimatedCounter({ targetValue }: { targetValue: number }) {
@@ -47,9 +43,10 @@ export default function StatisticsCards() {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
   
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/complaintsinfo/`)
+    fetch(`${API_BASE_URL}/api/getcompinfo/`)
       .then((res) => res.json())
       .then((data) => { 
+        console.log('Dashboard stats:', data)
         setInfo(data)
       })
       .catch((error) => {
@@ -60,35 +57,36 @@ export default function StatisticsCards() {
   const stats: StatCard[] = [
     {
       label: 'Total Complaints',
-      value: info.total_comp || 0,
+      value: info.total_complaints || 0,
       icon: <AlertCircle className="w-6 h-6" />,
       bgColor: 'bg-blue-500/10',
       textColor: 'text-blue-600',
       borderColor: 'border-blue-500/20',
     },
     {
-      label: 'In Progress',
-      value: info.inprogress_comp || 0,
-      icon: <TrendingUp className="w-6 h-6" />,
-      bgColor: 'bg-purple-500/10',
-      textColor: 'text-purple-600',
-      borderColor: 'border-purple-500/20',
+      label: 'Pending',
+      value: info.Pending_complaints || 0,
+      icon: <Clock className="w-6 h-6" />,
+      bgColor: 'bg-amber-500/10',
+      textColor: 'text-amber-600',
+      borderColor: 'border-amber-500/20',
     },
     {
       label: 'Resolved',
-      value: info.resolved_comp || 0,
+      value: info.Resolved_complaints || 0,
       icon: <CheckCircle className="w-6 h-6" />,
       bgColor: 'bg-green-500/10',
       textColor: 'text-green-600',
       borderColor: 'border-green-500/20',
     },
     {
-      label: 'Pending',
-      value: info.pending_comp || 0,
-      icon: <Clock className="w-6 h-6" />,
-      bgColor: 'bg-red-500/10',
-      textColor: 'text-red-600',
-      borderColor: 'border-red-500/20',
+      label: 'SLA Compliance',
+      value: Math.round(info.SLA_complaince || 0),
+      icon: <TrendingUp className="w-6 h-6" />,
+      bgColor: 'bg-purple-500/10',
+      textColor: 'text-purple-600',
+      borderColor: 'border-purple-500/20',
+      suffix: '%'
     },
   ]
 
@@ -107,7 +105,7 @@ export default function StatisticsCards() {
           <p className="text-sm font-medium text-muted-foreground mb-2">{stat.label}</p>
           <div className={`text-3xl sm:text-4xl font-bold ${stat.textColor}`}>
             <AnimatedCounter targetValue={stat.value} />
-            {(stat as any).suffix && <span className="text-xl">{(stat as any).suffix}</span>}
+            {stat.suffix && <span className="text-xl">{stat.suffix}</span>}
           </div>
         </div>
       ))}

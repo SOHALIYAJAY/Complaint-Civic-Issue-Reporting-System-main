@@ -1,4 +1,5 @@
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import CustomUser
@@ -6,6 +7,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from accounts.serializers import UserRegister
+from complaints.models import Complaint
 
 class LoginView(APIView):
     def post(self, request):
@@ -22,6 +25,7 @@ class LoginView(APIView):
                     'refresh_token': str(refresh),
                     'user': {
                         'email': user.email,
+                        'username': user.username,
                         'name': user.get_full_name() or user.email,
                         'role': user.User_Role
                     }
@@ -32,7 +36,7 @@ class LoginView(APIView):
 
 class RegisterView(APIView):
     def post(self, request):
-        name = request.data.get('name')
+        username = request.data.get('username')
         email = request.data.get('email')
         password = request.data.get('password')
         role = request.data.get('role', 'Civic-User')
@@ -40,17 +44,29 @@ class RegisterView(APIView):
         if CustomUser.objects.filter(email=email).exists():
             return Response({'success': False, 'message': 'Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if username and CustomUser.objects.filter(username=username).exists():
+            return Response({'success': False, 'message': 'Username already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
         user = CustomUser.objects.create_user(
             email=email,
             password=password,
-            first_name=name.split()[0] if name else '',
-            last_name=' '.join(name.split()[1:]) if name and len(name.split()) > 1 else '',
+            username=username or email.split('@')[0],
             User_Role=role
         )
         
+        # Auto-login after signup
+        refresh = RefreshToken.for_user(user)
+        
         return Response({
             'success': True,
-            'message': 'User registered successfully'
+            'message': 'User registered successfully',
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+            'user': {
+                'email': user.email,
+                'username': user.username,
+                'role': user.User_Role
+            }
         }, status=status.HTTP_201_CREATED)
 
 class LogoutView(APIView):
@@ -80,6 +96,7 @@ class GoogleLoginView(APIView):
             user, created = CustomUser.objects.get_or_create(
                 email=email,
                 defaults={
+                    'username': email.split('@')[0],
                     'first_name': name.split()[0] if name else '',
                     'last_name': ' '.join(name.split()[1:]) if name and len(name.split()) > 1 else '',
                     'User_Role': 'Civic-User'
@@ -94,6 +111,7 @@ class GoogleLoginView(APIView):
                 'refresh_token': str(refresh),
                 'user': {
                     'email': user.email,
+                    'username': user.username,
                     'name': user.get_full_name() or user.email,
                     'role': user.User_Role
                 }
@@ -109,3 +127,23 @@ class GoogleLoginView(APIView):
                 'success': False,
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserDetail(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            total_complaints = Complaint.objects.filter(user=user).count()
+            return Response({
+                'id': user.id,
+                'Username': user.username,
+                'email': user.email,
+                'Date': user.date_joined.strftime('%Y-%m-%d') if hasattr(user, 'date_joined') else None,
+                'role': user.User_Role if hasattr(user, 'User_Role') else 'Civic-User',
+                'total_complaints': total_complaints
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+

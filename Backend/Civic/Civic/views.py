@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView,UpdateAPIView
 from rest_framework.views import APIView
+<<<<<<< HEAD
 from complaints.models import Complaint,ComplaintAssignment
 from complaints.serializers import ComplaintSerializer,ComplaintAssignmentSerializer
 from accounts.models import CustomUser
@@ -10,6 +11,12 @@ from departments.models import Department,Officer
 from departments.serializers import deptSerializer, OfficerSerializer
 from rest_framework.generics import CreateAPIView
 from Categories.models import Category
+=======
+from complaints.models import Complaint
+from complaints.serializers import ComplaintSerializer
+from accounts.models import CustomUser
+from rest_framework.permissions import IsAuthenticated
+>>>>>>> 785306c2b3d62645f40837b44265315e3df2c188
 
 class getcomplaint(ListAPIView):
     queryset=Complaint.objects.all()
@@ -63,6 +70,7 @@ def complaintDetails(pk):
 class UserDetail(APIView):
     def get(self, request):
         try:
+<<<<<<< HEAD
             user_detail = CustomUser.objects.first()
             if not user_detail:
                 return Response({'error': 'No users found'}, status=404)
@@ -274,3 +282,22 @@ class CategoriesList(APIView):
             for c in categories
         ]
         return Response(categoinfo)
+=======
+            # Get user from token if authenticated, otherwise get first user
+            if request.user and request.user.is_authenticated:
+                user_detail = request.user
+            else:
+                user_detail = CustomUser.objects.first()
+            
+            if not user_detail:
+                return Response({'error': 'No user found'}, status=404)
+            
+            return Response({
+                'id': user_detail.id,
+                'Username': user_detail.username or user_detail.email.split('@')[0],
+                'email': user_detail.email,
+                'Date': user_detail.date_joined.strftime('%Y-%m-%d') if hasattr(user_detail, 'date_joined') else None
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+>>>>>>> 785306c2b3d62645f40837b44265315e3df2c188

@@ -5,9 +5,10 @@ import { Calendar, User } from 'lucide-react'
 
 interface UserDetail {
   id: number
-  Username : string
-  email : string
-  Date : string
+  Username: string
+  email: string
+  Date: string
+  role?: string
 }
 
 const statusConfig = {
@@ -23,17 +24,29 @@ const priorityConfig = {
 }
 
 export default function DashboardHeader() {
-    const [user, setUser] = useState<UserDetail[]>([])
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+  const [user, setUser] = useState<UserDetail | null>(null)
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
   
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/userdetail/`)
-      .then((res) => res.json())
+    const token = localStorage.getItem('access_token')
+    console.log('Token:', token ? 'exists' : 'missing')
+    
+    fetch(`${API_BASE_URL}/api/userdetails/`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then((res) => {
+        console.log('Response status:', res.status)
+        return res.json()
+      })
       .then((data) => { 
+        console.log('User data received:', data)
         setUser(data)
       })
       .catch((error) => {
-        console.error("Error fetching complaints:", error)
+        console.error("Error fetching user details:", error)
       })
   }, [])
 
@@ -52,7 +65,7 @@ export default function DashboardHeader() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-4xl sm:text-5xl font-bold text-primary text-balance">
-            Welcome Back, {user.Username }
+            Welcome Back, {user?.Username || 'Guest'}
           </h1>
           <p className="text-lg text-muted-foreground mt-2">
             Here's your civic complaint dashboard overview
@@ -67,7 +80,7 @@ export default function DashboardHeader() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Role</p>
-              <p className="text-sm font-semibold text-foreground">User-Role is Not Diffine</p>
+              <p className="text-sm font-semibold text-foreground">{user?.role || 'Civic User'}</p>
             </div>
           </div>
 
@@ -77,7 +90,7 @@ export default function DashboardHeader() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Last Login</p>
-              <p className="text-sm font-semibold text-foreground">{user.Date}</p>
+              <p className="text-sm font-semibold text-foreground">{user?.Date || 'N/A'}</p>
             </div>
           </div>
         </div>

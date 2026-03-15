@@ -9,7 +9,7 @@ import GoogleLoginBtn from '@/components/GoogleLoginBtn'
 import { useRouter } from 'next/navigation'
 
 export default function SignupPage() {
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'Civic-User' })
+  const [formData, setFormData] = useState({ username: '', email: '', password: '', confirmPassword: '', role: 'Civic-User' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -44,6 +44,10 @@ export default function SignupPage() {
       })
       const data = await response.json()
       if (data.success) {
+        // Save tokens after successful signup
+        localStorage.setItem('access_token', data.access_token)
+        localStorage.setItem('refresh_token', data.refresh_token)
+        localStorage.setItem('user', JSON.stringify(data.user))
         window.location.href = '/dashboard'
       } else {
         setError(data.message || 'Registration failed')
@@ -116,15 +120,15 @@ export default function SignupPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-foreground">Full Name</label>
+              <label className="block text-sm font-semibold text-foreground">Username</label>
               <div className="relative group">
                 <User className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  value={formData.username}
+                  onChange={(e) => setFormData({...formData, username: e.target.value})}
                   className="w-full pl-10 pr-4 py-3.5 rounded-xl border-2 border-input bg-background/50 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  placeholder="Enter your full name"
+                  placeholder="Enter your username"
                   required
                 />
               </div>

@@ -39,6 +39,10 @@ urlpatterns = [
     path('api/login/', LoginView.as_view(), name='login'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
     path('api/google-login/', GoogleLoginView.as_view(), name='google-login'),
+<<<<<<< HEAD
+=======
+    path('api/userdetails/', UserDetail.as_view(), name='user-details'),
+>>>>>>> 785306c2b3d62645f40837b44265315e3df2c188
     path('api/contact/',ContactUSview.as_view(),name='contact'),
     path('api/compinfo/',views.complaintinfo.as_view(),name='compinfo'),
     path('api/deptinfo/',views.deptinfo.as_view(),name='deptinfo'),
