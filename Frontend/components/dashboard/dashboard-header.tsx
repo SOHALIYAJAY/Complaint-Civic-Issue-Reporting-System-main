@@ -136,7 +136,7 @@ export default function DashboardHeader() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome back, {user?.data?.name || user?.data?.username || 'User'}!
+            Welcome back, {user?.data?.username || user?.data?.name || 'User'}!
           </h1>
           <p className="text-muted-foreground">
             Here's what's happening with your complaints today.

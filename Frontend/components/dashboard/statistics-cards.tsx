@@ -40,6 +40,7 @@ function AnimatedCounter({ targetValue }: { targetValue: number }) {
 
 export default function StatisticsCards() {
   const [info, setInfo] = useState<any>({})
+  const [loading, setLoading] = useState(true)
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
   
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function StatisticsCards() {
               SLA_complaince: 0,
               total_categories: 0
             })
+            setLoading(false)
             return
           }
           throw new Error(`HTTP error! status: ${res.status}`)
@@ -76,6 +78,7 @@ export default function StatisticsCards() {
       .then((data) => { 
         console.log('Dashboard stats:', data)
         setInfo(data)
+        setLoading(false)
       })
       .catch((error) => {
         console.error("Error fetching dashboard complaints:", error)
@@ -88,12 +91,15 @@ export default function StatisticsCards() {
           total_categories: 0
         })
       })
+      .finally(() => {
+        setLoading(false)
+      })
   }, [])
 
   const stats: StatCard[] = [
     {
       label: 'Total Complaints',
-      value: info.total_complaints || info.total_comp || 0,
+      value: (info && (info.total_complaints || info.total_comp)) || 0,
       icon: <AlertCircle className="w-6 h-6" />,
       bgColor: 'bg-blue-500/10',
       textColor: 'text-blue-600',
@@ -101,7 +107,7 @@ export default function StatisticsCards() {
     },
     {
       label: 'Pending',
-      value: info.Pending_complaints || info.pending_comp || 0,
+      value: (info && (info.Pending_complaints || info.pending_comp)) || 0,
       icon: <Clock className="w-6 h-6" />,
       bgColor: 'bg-amber-500/10',
       textColor: 'text-amber-600',
@@ -109,7 +115,7 @@ export default function StatisticsCards() {
     },
     {
       label: 'Resolved',
-      value: info.Resolved_complaints || info.resolved_comp || 0,
+      value: (info && (info.Resolved_complaints || info.resolved_comp)) || 0,
       icon: <CheckCircle className="w-6 h-6" />,
       bgColor: 'bg-green-500/10',
       textColor: 'text-green-600',
@@ -117,7 +123,7 @@ export default function StatisticsCards() {
     },
     {
       label: 'SLA Compliance',
-      value: info.SLA_complaince || info.sla_comp || 0,
+      value: (info && (info.SLA_complaince || info.sla_comp)) ? parseFloat((info.SLA_complaince || info.sla_comp).toFixed(2)) : 0,
       icon: <TrendingUp className="w-6 h-6" />,
       bgColor: 'bg-purple-500/10',
       textColor: 'text-purple-600',
@@ -128,23 +134,39 @@ export default function StatisticsCards() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((stat, index) => (
-        <div
-          key={index}
-          className={`glass-effect rounded-lg p-6 border ${stat.borderColor} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group`}
-        >
-          <div className="flex items-start justify-between mb-4">
-            <div className={`${stat.bgColor} rounded-lg p-3 group-hover:scale-110 transition-transform`}>
-              <div className={stat.textColor}>{stat.icon}</div>
+      {loading ? (
+        // Loading skeleton cards
+        Array.from({ length: 4 }).map((_, index) => (
+          <div key={`loading-${index}`} className="glass-effect rounded-lg border border-border p-6">
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded-full mb-4"></div>
+              <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
             </div>
           </div>
-          <p className="text-sm font-medium text-muted-foreground mb-2">{stat.label}</p>
-          <div className={`text-3xl sm:text-4xl font-bold ${stat.textColor}`}>
-            <AnimatedCounter targetValue={stat.value} />
-            {stat.suffix && <span className="text-xl">{stat.suffix}</span>}
+        ))
+      ) : (
+        // Actual stats cards
+        stats.map((stat, index) => (
+          <div
+            key={index}
+            className={`glass-effect rounded-lg border ${stat.borderColor} p-6 hover:shadow-lg transition-all duration-300 transform hover:scale-105`}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className={`${stat.bgColor} p-3 rounded-lg`}>
+                {stat.icon}
+              </div>
+              {stat.suffix && (
+                <AnimatedCounter targetValue={stat.value} />
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">{stat.label}</p>
+            <p className={`text-3xl font-bold ${stat.textColor}`}>
+              {stat.suffix ? `${stat.value}${stat.suffix}` : stat.value}
+            </p>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   )
 }
