@@ -8,6 +8,8 @@ interface Complaint {
   id: string
   title: string
   Category: string
+  category_name?: string
+  category_code?: string
   Description: string
   location_address: string
   location_District: string
@@ -57,8 +59,9 @@ export default function ComplaintsList({
     .filter((c) => (filterStatus === 'all' ? true : c.status.toLowerCase() === filterStatus.toLowerCase()))
     .filter((c) => {
       if (categoryFilter === 'all') return true
-      const catVal = (c as any).category_name || (c as any).Category || ''
-      return String(catVal) === String(categoryFilter)
+      // Check multiple possible category field names
+      const categoryValue = (c as any).category_name || (c as any).Category || ''
+      return String(categoryValue) === String(categoryFilter)
     })
     .filter((c) => (priorityFilter === 'all' ? true : c.priority_level === priorityFilter))
     .filter(

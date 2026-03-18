@@ -96,7 +96,7 @@ export default function ComplaintsFilter({
                 <option value="all">All Categories</option>
                 {categories.length > 0
                   ? categories.map((cat: any) => (
-                      <option key={cat.id} value={cat.code || cat.name}>
+                      <option key={cat.id} value={cat.name}>
                         {cat.name + (cat.code ? ` (${cat.code})` : '')}
                       </option>
                     ))

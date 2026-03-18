@@ -14,6 +14,8 @@ interface Complaint {
   id: string
   title: string
   Category: string
+  category_name?: string
+  category_code?: string
   Description: string
   location_address: string
   location_District: string
