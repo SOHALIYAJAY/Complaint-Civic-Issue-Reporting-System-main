@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -17,29 +17,92 @@ import {
 export default function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
 
-  const menuItems = [
-    {
-      label: 'Dashboard',
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      href: '/dashboard',
-    },
-    {
-      label: 'Raise Complaint',
-      icon: <Plus className="w-5 h-5" />,
-      href: '/raise-complaint',
-    },
-    {
-      label: 'My Complaints',
-      icon: <Eye className="w-5 h-5" />,
-      href: '/my-complaints',
-    },
-    {
-      label: 'Profile',
-      icon: <User className="w-5 h-5" />,
-      href: '/profile',
-    },
-  ]
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      setUser(JSON.parse(userData))
+    }
+  }, [])
+
+  const getMenuItems = () => {
+    if (!user) {
+      return []
+    }
+
+    const userRole = user.User_Role || user.role || 'Civic-User'
+
+    switch (userRole) {
+      case 'Civic-User':
+        return [
+          {
+            label: 'Dashboard',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+            href: '/dashboard',
+          },
+          {
+            label: 'Raise Complaint',
+            icon: <Plus className="w-5 h-5" />,
+            href: '/raise-complaint',
+          },
+          {
+            label: 'My Complaints',
+            icon: <Eye className="w-5 h-5" />,
+            href: '/my-complaints',
+          },
+          {
+            label: 'Profile',
+            icon: <User className="w-5 h-5" />,
+            href: '/profile',
+          },
+        ]
+      
+      case 'Department-User':
+        return [
+          {
+            label: 'Department',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+            href: '/department',
+          },
+          {
+            label: 'Profile',
+            icon: <User className="w-5 h-5" />,
+            href: '/department/profile',
+          },
+        ]
+      
+      case 'Admin-User':
+        return [
+          {
+            label: 'Admin',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+            href: '/admin',
+          },
+          {
+            label: 'Profile',
+            icon: <User className="w-5 h-5" />,
+            href: '/admin/profile',
+          },
+        ]
+      
+      default:
+        return [
+          {
+            label: 'Dashboard',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+            href: '/dashboard',
+          },
+          {
+            label: 'Profile',
+            icon: <User className="w-5 h-5" />,
+            href: '/profile',
+          },
+        ]
+    }
+  }
+
+  const menuItems = getMenuItems()
 
   const isActive = (href: string) => pathname === href
 

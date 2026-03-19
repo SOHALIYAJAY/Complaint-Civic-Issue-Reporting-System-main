@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { X, UserPlus } from "lucide-react"
-import api from '@/lib/axios'
+import api, { apiPost } from '@/lib/api'
 
 interface AddOfficerModalProps {
   open: boolean
@@ -74,7 +74,7 @@ export default function AddOfficerModal({ open, onClose, onSuccess }: AddOfficer
     if (!validate()) return
     try {
       setSubmitting(true)
-      await api.post('/api/create-officer/', {
+      await apiPost('/api/create-officer/', {
         officer_id: formData.officer_id.trim(),
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),

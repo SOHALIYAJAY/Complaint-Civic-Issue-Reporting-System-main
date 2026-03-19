@@ -12,6 +12,7 @@ import {
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
   { id: "security", label: "Security", icon: Lock },
+  { id: "system", label: "System", icon: Settings },
 ]
 
 export default function AdminSettingsPage() {
@@ -52,32 +53,10 @@ export default function AdminSettingsPage() {
     sessionTimeout: 30
   })
 
-  // Users State
-  const [users, setUsers] = useState([])
-  const [searchUser, setSearchUser] = useState("")
-  const [selectedUser, setSelectedUser] = useState(null)
-
-  // Departments State
-  const [departments, setDepartments] = useState([])
-  const [newDepartment, setNewDepartment] = useState({ name: "", description: "", head: "" })
-
-  // Notifications State
-  const [notifications, setNotifications] = useState({
-    emailComplaints: true,
-    emailResolutions: true,
-    smsAlerts: false,
-    pushNotifications: true,
-    weeklyReports: true,
-    criticalAlerts: true
-  })
-
-  // Activity Logs State
-  const [logs, setLogs] = useState([])
-  const [logFilter, setLogFilter] = useState("all")
-
   // Fetch initial data
   useEffect(() => {
     fetchProfileData()
+    fetchSystemSettings()
   }, [])
 
   const fetchProfileData = async () => {
@@ -102,17 +81,6 @@ export default function AdminSettingsPage() {
             department: data.department || "System Administration",
             avatar: data.avatar || ""
           })
-          
-          // Update system stats if available
-          if (data.statistics) {
-            setSystemStats({
-              totalComplaints: data.statistics.total_complaints || 0,
-              resolvedComplaints: data.statistics.resolved_complaints || 0,
-              pendingComplaints: data.statistics.pending_complaints || 0,
-              totalUsers: data.statistics.total_users || 0,
-              activeUsers: data.statistics.active_users || 0
-            })
-          }
         }
       } else {
         // Set fallback data for demo
@@ -150,88 +118,31 @@ export default function AdminSettingsPage() {
       })
       
       if (response.ok) {
-        const data = await response.json()
-        setSystemSettings(data)
+        const result = await response.json()
+        if (result.success && result.data) {
+          const d = result.data
+          setSystemSettings((prev) => ({
+            ...prev,
+            siteName: d.siteName ?? prev.siteName,
+            siteDescription: d.siteDescription ?? prev.siteDescription,
+            maintenanceMode: d.maintenanceMode ?? prev.maintenanceMode,
+            allowRegistration: d.allowRegistration ?? prev.allowRegistration,
+            emailNotifications: d.emailNotifications ?? prev.emailNotifications,
+            smsNotifications: d.smsNotifications ?? prev.smsNotifications,
+            defaultLanguage: d.defaultLanguage ?? prev.defaultLanguage,
+            timezone: d.timezone ?? prev.timezone,
+            maxFileSize: d.maxFileSize ?? prev.maxFileSize,
+            sessionTimeout: d.sessionTimeout ?? prev.sessionTimeout,
+          }))
+        }
       }
     } catch (error) {
       console.error('Error fetching system settings:', error)
     }
   }
 
-  const fetchUsers = async () => {
-    try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/admin/users/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data.users || [])
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error)
-      // Set fallback data
-      setUsers([
-        { id: 1, name: "John Doe", email: "john@example.com", role: "Officer", department: "Sanitation", status: "active", lastLogin: "2024-03-19T10:30:00Z" },
-        { id: 2, name: "Jane Smith", email: "jane@example.com", role: "Admin", department: "IT", status: "active", lastLogin: "2024-03-19T09:15:00Z" },
-        { id: 3, name: "Mike Johnson", email: "mike@example.com", role: "Officer", department: "Infrastructure", status: "inactive", lastLogin: "2024-03-18T16:45:00Z" }
-      ])
-    }
-  }
-
-  const fetchDepartments = async () => {
-    try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/admin/departments/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setDepartments(data.departments || [])
-      }
-    } catch (error) {
-      console.error('Error fetching departments:', error)
-      // Set fallback data
-      setDepartments([
-        { id: 1, name: "Sanitation", description: "Waste management and cleaning services", head: "John Doe", activeUsers: 12 },
-        { id: 2, name: "Infrastructure", description: "Road maintenance and construction", head: "Jane Smith", activeUsers: 8 },
-        { id: 3, name: "Water Supply", description: "Water distribution and maintenance", head: "Mike Johnson", activeUsers: 15 }
-      ])
-    }
-  }
-
-  const fetchActivityLogs = async () => {
-    try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/admin/activity-logs/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setLogs(data.logs || [])
-      }
-    } catch (error) {
-      console.error('Error fetching activity logs:', error)
-      // Set fallback data
-      setLogs([
-        { id: 1, user: "Admin User", action: "Updated system settings", timestamp: "2024-03-19T10:30:00Z", ip: "192.168.1.1", status: "success" },
-        { id: 2, user: "John Doe", action: "Created new complaint", timestamp: "2024-03-19T09:15:00Z", ip: "192.168.1.2", status: "success" },
-        { id: 3, user: "Jane Smith", action: "Failed login attempt", timestamp: "2024-03-19T08:45:00Z", ip: "192.168.1.3", status: "failed" }
-      ])
-    }
-  }
+  // The following helper fetches (users/departments/logs) referenced non-existent admin APIs.
+  // They have been removed to keep this page fully functional with existing backend endpoints only.
 
   const handleSave = async (section: string = "all") => {
     setLoading(true)
@@ -330,92 +241,7 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const handleUserAction = async (action, userId) => {
-    try {
-      const token = localStorage.getItem('access_token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/admin/users/${userId}/${action}/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      // Refresh users list
-      fetchUsers()
-      setSuccess(`User ${action} successful!`)
-      setTimeout(() => setSuccess(""), 3000)
-    } catch (error) {
-      console.error('Error performing user action:', error)
-      setError(`Failed to ${action} user`)
-    }
-  }
-
-  const handleAddDepartment = async () => {
-    try {
-      const token = localStorage.getItem('access_token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/admin/departments/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newDepartment)
-      })
-      
-      // Refresh departments list
-      fetchDepartments()
-      setNewDepartment({ name: "", description: "", head: "" })
-      setSuccess("Department added successfully!")
-      setTimeout(() => setSuccess(""), 3000)
-    } catch (error) {
-      console.error('Error adding department:', error)
-      setError("Failed to add department")
-    }
-  }
-
-  const handleBackup = async (type) => {
-    setLoading(true)
-    try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/admin/backup/${type}/`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `backup-${type}-${new Date().toISOString().split('T')[0]}.sql`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        
-        setSuccess(`${type} backup created successfully!`)
-      }
-    } catch (error) {
-      console.error('Error creating backup:', error)
-      setError("Failed to create backup")
-    } finally {
-      setLoading(false)
-      setTimeout(() => setSuccess(""), 3000)
-    }
-  }
-
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchUser.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchUser.toLowerCase())
-  )
-
-  const filteredLogs = logs.filter(log => 
-    logFilter === "all" || log.status === logFilter
-  )
+  // User, department, logs, and backup actions removed because backend does not expose matching admin APIs.
 
   return (
     <div className="p-4 lg:p-6 space-y-6 min-h-screen bg-gray-50">
@@ -846,184 +672,9 @@ export default function AdminSettingsPage() {
             </>
           )}
 
-          {/* USER MANAGEMENT TAB */}
-          {activeTab === "users" && (
-            <>
-              <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-semibold text-slate-800">User Management</h2>
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Search users..."
-                        value={searchUser}
-                        onChange={(e) => setSearchUser(e.target.value)}
-                        className="pl-9 pr-3 py-2 border border-[#e2e8f0] rounded-lg bg-[#f8fafc] text-sm text-slate-700 w-64"
-                      />
-                    </div>
-                    <button className="flex items-center gap-2 px-3 py-2 bg-[#1e40af] text-white text-sm font-medium rounded-lg hover:bg-[#1e3a8a] transition-colors">
-                      <Plus className="w-4 h-4" />
-                      Add User
-                    </button>
-                  </div>
-                </div>
+          {/* Additional tabs (users, departments, notifications, logs, backup) removed to keep this page aligned with existing backend APIs */}
 
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-[#e2e8f0]">
-                        <th className="text-left py-3 px-4 text-xs font-medium text-slate-600 uppercase tracking-wider">User</th>
-                        <th className="text-left py-3 px-4 text-xs font-medium text-slate-600 uppercase tracking-wider">Role</th>
-                        <th className="text-left py-3 px-4 text-xs font-medium text-slate-600 uppercase tracking-wider">Department</th>
-                        <th className="text-left py-3 px-4 text-xs font-medium text-slate-600 uppercase tracking-wider">Status</th>
-                        <th className="text-left py-3 px-4 text-xs font-medium text-slate-600 uppercase tracking-wider">Last Login</th>
-                        <th className="text-left py-3 px-4 text-xs font-medium text-slate-600 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#e2e8f0]">
-                      {filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-[#f8fafc]">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1e40af] to-[#3b82f6] flex items-center justify-center text-white font-bold text-xs">
-                                {user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-slate-800">{user.name}</p>
-                                <p className="text-xs text-slate-500">{user.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
-                              {user.role}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-sm text-slate-600">{user.department}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.status === 'active' 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-red-100 text-red-700'
-                            }`}>
-                              {user.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-sm text-slate-600">
-                            {new Date(user.lastLogin).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <button className="p-1 hover:bg-slate-100 rounded">
-                                <Edit className="w-4 h-4 text-slate-400" />
-                              </button>
-                              <button 
-                                onClick={() => handleUserAction(user.status === 'active' ? 'deactivate' : 'activate', user.id)}
-                                className="p-1 hover:bg-slate-100 rounded"
-                              >
-                                {user.status === 'active' ? (
-                                  <X className="w-4 h-4 text-red-400" />
-                                ) : (
-                                  <Check className="w-4 h-4 text-green-400" />
-                                )}
-                              </button>
-                              <button className="p-1 hover:bg-slate-100 rounded">
-                                <Trash2 className="w-4 h-4 text-red-400" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* DEPARTMENTS TAB */}
-          {activeTab === "departments" && (
-            <>
-              <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-semibold text-slate-800">Department Management</h2>
-                  <button className="flex items-center gap-2 px-3 py-2 bg-[#1e40af] text-white text-sm font-medium rounded-lg hover:bg-[#1e3a8a] transition-colors">
-                    <Plus className="w-4 h-4" />
-                    Add Department
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {departments.map((dept) => (
-                    <div key={dept.id} className="border border-[#e2e8f0] rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-sm font-semibold text-slate-800">{dept.name}</h3>
-                          <p className="text-xs text-slate-500 mt-1">{dept.description}</p>
-                        </div>
-                        <button className="p-1 hover:bg-slate-100 rounded">
-                          <Edit className="w-4 h-4 text-slate-400" />
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500">Head: {dept.head}</span>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                          {dept.activeUsers} users
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5">
-                <h3 className="text-base font-semibold text-slate-800 mb-4">Add New Department</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Department Name</label>
-                    <input
-                      type="text"
-                      value={newDepartment.name}
-                      onChange={(e) => setNewDepartment({ ...newDepartment, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg bg-[#f8fafc] text-sm text-slate-700"
-                      placeholder="Enter department name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Description</label>
-                    <textarea
-                      value={newDepartment.description}
-                      onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg bg-[#f8fafc] text-sm text-slate-700"
-                      placeholder="Enter department description"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Department Head</label>
-                    <input
-                      type="text"
-                      value={newDepartment.head}
-                      onChange={(e) => setNewDepartment({ ...newDepartment, head: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg bg-[#f8fafc] text-sm text-slate-700"
-                      placeholder="Enter department head name"
-                    />
-                  </div>
-                  <button
-                    onClick={handleAddDepartment}
-                    className="px-4 py-2 bg-[#1e40af] text-white text-sm font-medium rounded-lg hover:bg-[#1e3a8a] transition-colors"
-                  >
-                    Add Department
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* NOTIFICATIONS TAB */}
-          {activeTab === "notifications" && (
+          {activeTab === "system" && (
             <>
               <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5">
                 <h2 className="text-base font-semibold text-slate-800 mb-4 pb-3 border-b border-[#e2e8f0]">Notification Preferences</h2>

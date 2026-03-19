@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Search, Filter, MoreVertical, Edit, Eye, UserPlus, Shield, AlertCircle, Users, TrendingUp, Activity, RefreshCw, Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from "react"
+import { Search, Filter, MoreVertical, Edit, Eye, UserPlus, Shield, AlertCircle, Users, TrendingUp, Activity, RefreshCw, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import StatsCard from "@/components/ui/stats-card"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 
 interface User {
@@ -46,6 +47,11 @@ export default function AdminUsersPage() {
     role: 'user',
     password: ''
   })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
+  
   const router = useRouter()
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
@@ -152,9 +158,13 @@ export default function AdminUsersPage() {
           date_joined: user.date_joined || user.created_at || new Date().toISOString(),
           last_login: user.last_login,
           complaint_count: user.complaint_count || 0
-        }))
+        })).filter(user => {
+          // Filter out admin users - only show Civic Users and Department Users
+          const userRole = user.role?.toLowerCase() || ''
+          return !userRole.includes('admin') && !userRole.includes('administrator')
+        })
         
-        console.log('Processed users:', processedUsers)
+        console.log('Processed users (filtered):', processedUsers)
         setUsers(processedUsers)
 
         // Calculate analytics
@@ -170,11 +180,15 @@ export default function AdminUsersPage() {
           return acc
         }, {} as Record<string, number>)
 
-        const roleDistribution = Object.entries(roleCounts).map(([name, value]) => ({
-          name: name.replace('-', ' '),
-          value,
-          color: name === 'Admin User' ? '#ef4444' : name === 'Civic User' ? '#8b5cf6' : '#10b981'
-        }))
+        const roleDistribution = Object.entries(roleCounts).map(([name, value], index) => {
+          // Define available colors for different roles
+          const availableColors = ['#dc2626', '#2563eb', '#059669', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+          return {
+            name: name.replace('-', ' '),
+            value,
+            color: availableColors[index % availableColors.length]
+          }
+        })
 
         // Try to fetch monthly registrations from database
         let monthlyRegistrations = await fetchMonthlyRegistrations()
@@ -195,19 +209,31 @@ export default function AdminUsersPage() {
       }
     } catch (error) {
       console.error('Error fetching users:', error)
-      // Set fallback data
+      // Set fallback data (excluding admin users)
       const fallbackUsers = [
         {
           id: 1,
-          username: 'admin',
-          email: 'admin@example.com',
-          first_name: 'Admin',
+          username: 'civic_user',
+          email: 'civic@example.com',
+          first_name: 'Civic',
           last_name: 'User',
-          role: 'admin',
+          role: 'Civic User',
           is_active: true,
           date_joined: '2024-01-01',
           last_login: '2024-12-01',
-          complaint_count: 0
+          complaint_count: 5
+        },
+        {
+          id: 2,
+          username: 'dept_user',
+          email: 'dept@example.com',
+          first_name: 'Department',
+          last_name: 'User',
+          role: 'Department User',
+          is_active: true,
+          date_joined: '2024-02-01',
+          last_login: '2024-12-01',
+          complaint_count: 3
         }
       ]
       setUsers(fallbackUsers)
@@ -260,6 +286,17 @@ export default function AdminUsersPage() {
     
     return matchesSearch && matchesRole && matchesStatus
   })
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem)
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, roleFilter, statusFilter])
 
   const handleCreateUser = async () => {
     try {
@@ -424,7 +461,7 @@ export default function AdminUsersPage() {
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90 transition-colors"
             >
               <UserPlus className="w-4 h-4" />
               Add User
@@ -435,53 +472,39 @@ export default function AdminUsersPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{analyticsData.totalUsers}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Total Users"
+          value={analyticsData.totalUsers}
+          icon={<Users className="w-6 h-6" />}
+          borderColor="border-t-[#1e40af]"
+        />
         
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Users</p>
-              <p className="text-2xl font-bold text-green-600">{analyticsData.activeUsers}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Activity className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Active Users"
+          value={analyticsData.activeUsers}
+          icon={<Activity className="w-6 h-6" />}
+          color="text-green-600"
+          bgColor="bg-green-100"
+          borderColor="border-t-[#f59e0b]"
+        />
         
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Inactive Users</p>
-              <p className="text-2xl font-bold text-red-600">{analyticsData.inactiveUsers}</p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Civic Users"
+          value={analyticsData.inactiveUsers}
+          icon={<AlertCircle className="w-6 h-6" />}
+          color="text-blue-600"
+          bgColor="bg-blue-100"
+          borderColor="border-t-[#3b82f6]"
+        />
         
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Complaints</p>
-              <p className="text-2xl font-bold text-orange-600">{analyticsData.totalComplaints}</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Department Users"
+          value={analyticsData.totalComplaints}
+          icon={<TrendingUp className="w-6 h-6" />}
+          color="text-green-600"
+          bgColor="bg-green-100"
+          borderColor="border-t-[#16a34a]"
+        />
       </div>
 
       {/* Charts Section */}
@@ -530,14 +553,14 @@ export default function AdminUsersPage() {
             <h3 className="text-lg font-semibold text-gray-900">User Role Distribution</h3>
             <p className="text-sm text-gray-500">Distribution of users by role</p>
           </div>
-          <div className="h-64">
+          <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={analyticsData.roleDistribution}
                   cx="50%"
                   cy="50%"
-                  outerRadius={80}
+                  outerRadius={60}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -577,7 +600,7 @@ export default function AdminUsersPage() {
                 placeholder="Search users by name, email, or username..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
               />
             </div>
           </div>
@@ -585,7 +608,7 @@ export default function AdminUsersPage() {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
             >
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
@@ -595,7 +618,7 @@ export default function AdminUsersPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -609,7 +632,7 @@ export default function AdminUsersPage() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sidebar-primary mx-auto"></div>
             <p className="mt-2 text-gray-500">Loading users...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
@@ -618,20 +641,21 @@ export default function AdminUsersPage() {
             <p className="text-gray-500">No users found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Complaints</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Complaints</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {currentUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center">
@@ -672,7 +696,7 @@ export default function AdminUsersPage() {
                             setEditingUser(user)
                             setShowEditModal(true)
                           }}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-sidebar-primary hover:text-sidebar-primary/80"
                           title="Edit User"
                         >
                           <Edit className="w-4 h-4" />
@@ -691,6 +715,61 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} users
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                
+                {/* Page Numbers */}
+                {[...Array(Math.min(5, totalPages))].map((_, index) => {
+                  let pageNumber;
+                  if (totalPages <= 5) {
+                    pageNumber = index + 1;
+                  } else if (currentPage <= 3) {
+                    pageNumber = index + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + index;
+                  } else {
+                    pageNumber = currentPage - 2 + index;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => setCurrentPage(pageNumber)}
+                      className={`px-3 py-1 text-sm border rounded-md ${
+                        currentPage === pageNumber
+                          ? 'bg-sidebar-primary text-white border-sidebar-primary'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  );
+                })}
+                
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+          </>
         )}
       </div>
 
@@ -706,7 +785,7 @@ export default function AdminUsersPage() {
                   type="text"
                   value={newUser.username}
                   onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                 />
               </div>
               <div>
@@ -715,7 +794,7 @@ export default function AdminUsersPage() {
                   type="email"
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -725,7 +804,7 @@ export default function AdminUsersPage() {
                     type="text"
                     value={newUser.first_name}
                     onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                   />
                 </div>
                 <div>
@@ -734,7 +813,7 @@ export default function AdminUsersPage() {
                     type="text"
                     value={newUser.last_name}
                     onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                   />
                 </div>
               </div>
@@ -743,7 +822,7 @@ export default function AdminUsersPage() {
                 <select
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                 >
                   <option value="user">User</option>
                   <option value="officer">Officer</option>
@@ -756,7 +835,7 @@ export default function AdminUsersPage() {
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                 />
               </div>
             </div>
@@ -769,7 +848,7 @@ export default function AdminUsersPage() {
               </button>
               <button
                 onClick={handleCreateUser}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90"
               >
                 Create User
               </button>
@@ -790,7 +869,7 @@ export default function AdminUsersPage() {
                   type="text"
                   value={editingUser.username}
                   onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                 />
               </div>
               <div>
@@ -799,7 +878,7 @@ export default function AdminUsersPage() {
                   type="email"
                   value={editingUser.email}
                   onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -809,7 +888,7 @@ export default function AdminUsersPage() {
                     type="text"
                     value={editingUser.first_name}
                     onChange={(e) => setEditingUser({ ...editingUser, first_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                   />
                 </div>
                 <div>
@@ -818,7 +897,7 @@ export default function AdminUsersPage() {
                     type="text"
                     value={editingUser.last_name}
                     onChange={(e) => setEditingUser({ ...editingUser, last_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                   />
                 </div>
               </div>
@@ -827,7 +906,7 @@ export default function AdminUsersPage() {
                 <select
                   value={editingUser.role}
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
                 >
                   <option value="user">User</option>
                   <option value="officer">Officer</option>
@@ -855,7 +934,7 @@ export default function AdminUsersPage() {
               </button>
               <button
                 onClick={handleUpdateUser}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90"
               >
                 Update User
               </button>

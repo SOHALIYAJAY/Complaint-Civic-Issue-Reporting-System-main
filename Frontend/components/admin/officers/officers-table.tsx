@@ -17,7 +17,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react"
-import api from '@/lib/axios'
+import api, { apiGet } from '@/lib/api'
 
 export interface Officer {
   officer_id: string
@@ -58,8 +58,8 @@ export default function OfficersTable({
   const fetchOfficers = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/api/officerinfo/')
-      setOfficers(response.data)
+      const response = await apiGet('/api/officerinfo/')
+      setOfficers(response)
     } catch (error) {
       console.error('Error fetching officers:', error)
     } finally {
@@ -103,25 +103,16 @@ export default function OfficersTable({
 
   return (
     <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm">
-      {/* Header + Filters */}
-      <div className="p-5 border-b border-[#e2e8f0]">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-800">Officers Workforce</h3>
-            <p className="text-sm text-slate-500">{filtered.length} officers in department</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/department/officers/create" className="inline-block">
-              <button className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-[#7c3aed] rounded-lg hover:bg-[#6d28d9] transition-colors">
-                <UserPlus className="w-4 h-4" />
-                Create Officer
-              </button>
-            </Link>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between p-5 border-b border-[#e2e8f0]">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800">Officers Workforce</h3>
+          <p className="text-sm text-slate-500">{filtered.length} officers in department</p>
         </div>
+      </div>
 
-        {/* Filter row */}
-        <div className="flex flex-wrap gap-3">
+      {/* Filter row */}
+      <div className="p-5 flex flex-wrap gap-3">
           {/* Search */}
           <div className="flex items-center gap-2 bg-[#f1f5f9] px-3 py-2 rounded-lg border border-[#e2e8f0] flex-1 min-w-[220px]">
             <Search className="w-4 h-4 text-slate-400" />
@@ -161,7 +152,7 @@ export default function OfficersTable({
             Name
           </button>
         </div>
-      </div>
+    
 
       {/* Table */}
       <div className="overflow-x-auto">
@@ -265,6 +256,8 @@ export default function OfficersTable({
           </div>
         </div>
       )}
-    </div>
+    </div>  
+          
   )
 }
+

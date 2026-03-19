@@ -191,22 +191,30 @@ def department_complaints(request):
     """
     try:
         user = request.user
+        print(f"Department complaints requested by user: {user.username} (ID: {user.id})")
         
         # Get department based on user's role and department
         department = None
         if hasattr(user, 'departments') and user.departments.exists():
             department = user.departments.first()
+            print(f"Found department via departments relation: {department.name}")
         elif hasattr(user, 'headed_department') and user.headed_department.exists():
             department = user.headed_department.first()
+            print(f"Found department via headed_department relation: {department.name}")
         
         if not department:
+            print(f"No department found for user {user.username}")
             return Response({'error': 'No department found for this user'}, status=status.HTTP_404_NOT_FOUND)
         
-        # Get complaints assigned to this department's officers
-        department_officers = department.officers.all()
+        # Get complaints that should be handled by this department
+        # This includes both assigned and unassigned complaints
+        # Category.department is a CharField, so we need to filter by department name
+        print(f"Filtering complaints for department: {department.name}")
         complaints = Complaint.objects.filter(
-            officer_id__in=department_officers
+            Category__department=department.name
         ).order_by('-current_time')
+        
+        print(f"Found {complaints.count()} complaints for department {department.name}")
         
         complaints_data = []
         
@@ -218,16 +226,17 @@ def department_complaints(request):
                 'category': complaint.Category.name if complaint.Category else 'Uncategorized',
                 'priority': complaint.priority_level,
                 'status': complaint.status,
-                'submittedDate': complaint.current_time.strftime('%Y-%m-%d'),
+                'submittedDate': complaint.current_time.strftime('%Y-%m-%d') if complaint.current_time else 'Unknown',
                 'assignedOfficer': complaint.officer_id.name if complaint.officer_id else 'Unassigned',
                 'estimatedResolution': 'Not set',  # This field doesn't exist in the model
                 'citizenName': complaint.user.get_full_name() if complaint.user else 'Unknown',
                 'citizenEmail': complaint.user.email if complaint.user else 'Unknown',
-                'citizenPhone': getattr(complaint.user, 'phone', 'Not Available'),
+                'citizenPhone': getattr(complaint.user, 'mobile_number', 'Not Available'),
                 'location': complaint.location_address or 'Not specified',
                 'satisfactionRating': None  # This field doesn't exist in the model
             })
         
+        print(f"Returning {len(complaints_data)} complaints")
         return Response(complaints_data)
         
     except Exception as e:

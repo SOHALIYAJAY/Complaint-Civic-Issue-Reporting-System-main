@@ -29,13 +29,13 @@ const menuItems = [
 export default function DepartmentLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
   const pathname = usePathname()
   const router = useRouter()
 
   return (
-    <RequireAuth role="Department-User">
-    <div className="flex h-screen bg-[#F8FAFC]">
+    // Allow both Department and Admin users to open department pages
+    <RequireAuth role={['Department-User', 'Admin-User']}>
+      <div className="flex h-screen bg-[#F8FAFC]">
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -56,7 +56,7 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
         {/* Logo area */}
         <div className="h-16 flex items-center border-b border-primary-foreground/20 px-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-sm">G</span>
             </div>
             {sidebarOpen && (
@@ -137,23 +137,12 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Search bar */}
-            <div className="hidden md:flex items-center gap-2 bg-[#F8FAFC] px-3 py-2 rounded-lg border border-[#E2E8F0]">
-              <Search className="w-4 h-4 text-[#64748B]" />
-              <input
-                type="text"
-                placeholder="Search complaints..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-transparent text-sm outline-none w-52 text-[#1E293B] placeholder:text-[#64748B]"
-              />
-            </div>
-
-
-
-            {/* Profile */}
-            <button className="flex items-center gap-3 pl-3 border-l border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-              <div className="w-9 h-9 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-semibold text-sm">
+            {/* Profile Button */}
+            <button 
+              onClick={() => router.push('/department/profile')}
+              className="flex items-center gap-3 pl-3 border-l border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors"
+            >
+              <div className="w-9 h-9 rounded-full bg-sidebar-primary text-white flex items-center justify-center font-semibold text-sm">
                 PW
               </div>
               <div className="hidden md:block">

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import api from '@/lib/axios'
+import api, { apiGet } from '@/lib/api'
 import {
   Search,
   Filter,
@@ -114,20 +114,49 @@ export default function AssignedComplaintsTable({
 
   const fetchComplaints = async () => {
     try {
-      const response = await api.get("/api/getcomplaint/")
-      console.debug('API /api/getcomplaint/ response:', response.data)
+      // Use department-specific endpoint for department users
+      const response = await apiGet("/api/department/complaints/")
+      console.debug('API /api/department/complaints/ response:', response)
+      
+      // Transform the response data to match the expected Complaint interface
+      const transformedComplaints = response.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        Category: item.category,
+        Description: item.description,
+        video_image: '', // Not provided by department endpoint
+        image_video: '', // Not provided by department endpoint
+        location_District: item.location || 'Not specified',
+        location_address: item.location || 'Not specified',
+        category_code: item.category,
+        category_name: item.category,
+        priority_level: item.priority || 'Medium',
+        status: item.status || 'Pending',
+        current_time: item.submittedDate || new Date().toISOString(),
+        is_assignd: item.assignedOfficer !== 'Unassigned',
+        officer_id: item.assignedOfficer || null
+      }))
       
       // Log the structure of the first complaint to check if it has an id
-      if (response.data && response.data.length > 0) {
-        console.log('First complaint structure:', response.data[0])
-        console.log('First complaint id:', response.data[0].id)
-        console.log('First complaint type:', typeof response.data[0])
-        console.log('All complaint IDs:', response.data.map((c: any) => c.id))
+      if (transformedComplaints && transformedComplaints.length > 0) {
+        console.log('First complaint structure:', transformedComplaints[0])
+        console.log('First complaint id:', transformedComplaints[0].id)
+        console.log('First complaint type:', typeof transformedComplaints[0])
+        console.log('All complaint IDs:', transformedComplaints.map((c: any) => c.id))
       }
       
-      setComplaints(response.data)
+      setComplaints(transformedComplaints)
     } catch (error) {
-      console.error('Error fetching complaints:', error)
+      console.error('Error fetching department complaints:', error)
+      // Fallback to regular complaints if department endpoint fails
+      try {
+        const fallbackResponse = await apiGet("/api/getcomplaint/")
+        console.debug('Fallback API /api/getcomplaint/ response:', fallbackResponse)
+        setComplaints(fallbackResponse)
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError)
+        setComplaints([])
+      }
     } finally {
       setLoading(false)
     }
@@ -135,12 +164,12 @@ export default function AssignedComplaintsTable({
 
   const fetchCategories = async () => {
     try {
-      const res = await api.get('/api/categories/')
-      console.debug('API /api/categories/ response:', res.data)
-      if (Array.isArray(res.data)) {
+      const res = await apiGet('/api/categories/')
+      console.debug('API /api/categories/ response:', res)
+      if (Array.isArray(res)) {
           const map: Record<string | number, string> = {}
           const codesSet = new Set<string>()
-          res.data.forEach((c: any) => {
+          res.forEach((c: any) => {
             // support lookup by id, name, and code (case-insensitive)
             const codeVal = c.code ?? c.name ?? (c.id != null ? String(c.id) : undefined)
             if (c.id != null && c.code != null) map[c.id] = c.code

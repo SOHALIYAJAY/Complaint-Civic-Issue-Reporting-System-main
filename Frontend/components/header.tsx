@@ -42,15 +42,60 @@ export default function Header() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
-  const navItems = [
-    { label: 'Home', href: '/' },
-    { label: 'About', href: '/about' },
-    { label: 'Dashboard', href: '/dashboard' },
-    { label: 'Admin', href: '/admin' },
-    { label: 'Department', href: '/department' },
-    { label: 'Contact', href: '/contact' },
-    { label: 'My Complaints', href: '/my-complaints' },
-  ]
+  const getNavItems = () => {
+    if (!isLoggedIn || !user) {
+      // Not logged in - show basic navigation
+      return [
+        { label: 'Home', href: '/' },
+        { label: 'About', href: '/about' },
+        { label: 'Contact', href: '/contact' },
+      ]
+    }
+
+    const userRole = user.User_Role || user.role || 'Civic-User'
+
+    switch (userRole) {
+      case 'Civic-User':
+        // Civic User - can see complaints and raise complaints
+        return [
+          { label: 'Home', href: '/' },
+          { label: 'About', href: '/about' },
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Contact', href: '/contact' },
+          { label: 'My Complaints', href: '/my-complaints' },
+          { label: 'Raise Complaint', href: '/raise-complaint' },
+        ]
+      
+      case 'Department-User':
+        // Department User - department dashboard, no complaints access
+        return [
+          { label: 'About', href: '/about' },
+          { label: 'Department', href: '/department' },
+          { label: 'Contact', href: '/contact' },
+        ]
+      
+      case 'Admin-User':
+        // Admin User - admin dashboard only
+        return [
+          { label: 'About', href: '/about' },
+          { label: 'Admin', href: '/admin' },
+          { label: 'Contact', href: '/contact' },
+        ]
+      
+      default:
+        // Fallback to civic user navigation
+        return [
+          { label: 'Home', href: '/' },
+          { label: 'About', href: '/about' },
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Contact', href: '/contact' },
+          { label: 'My Complaints', href: '/my-complaints' },
+          { label: 'Raise Complaint', href: '/raise-complaint' },
+        ]
+    }
+  }
+
+  const navItems = getNavItems()
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
@@ -110,11 +155,15 @@ export default function Header() {
                 </Link>
               </>
             )}
-            <Link href="/raise-complaint">
-              <Button size="sm" className="bg-accent hover:bg-yellow-500 text-accent-foreground font-semibold">
-                Raise Complaint
-              </Button>
-            </Link>
+            
+            {/* Show Raise Complaint button only for Civic Users */}
+            {isLoggedIn && user && (user.User_Role === 'Civic-User' || user.role === 'Civic-User') && (
+              <Link href="/raise-complaint">
+                <Button size="sm" className="bg-accent hover:bg-yellow-500 text-accent-foreground font-semibold">
+                  Raise Complaint
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile toggle */}
@@ -167,11 +216,15 @@ export default function Header() {
                   </Link>
                 </>
               )}
-              <Link href="/raise-complaint" className="flex-1" onClick={() => setIsMenuOpen(false)}>
-                <Button size="sm" className="w-full bg-accent hover:bg-yellow-500 text-accent-foreground font-semibold">
-                  Raise Complaint
-                </Button>
-              </Link>
+              
+              {/* Show Raise Complaint button only for Civic Users */}
+              {isLoggedIn && user && (user.User_Role === 'Civic-User' || user.role === 'Civic-User') && (
+                <Link href="/raise-complaint" className="flex-1" onClick={() => setIsMenuOpen(false)}>
+                  <Button size="sm" className="w-full bg-accent hover:bg-yellow-500 text-accent-foreground font-semibold">
+                    Raise Complaint
+                  </Button>
+                </Link>
+              )}
             </div>
           </nav>
         </div>

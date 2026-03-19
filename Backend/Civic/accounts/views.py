@@ -572,8 +572,8 @@ class AdminProfileView(APIView):
         try:
             user = request.user
             
-            # Check if user is admin
-            if user.User_Role != 'Admin':
+            # Check if user is admin (consistent with Admin-User role used in login)
+            if user.User_Role != 'Admin-User':
                 return Response({
                     'success': False,
                     'error': 'Access denied. Admin access required.'
@@ -628,7 +628,7 @@ class AdminUpdateProfileView(APIView):
             user = request.user
             
             # Check if user is admin
-            if user.User_Role != 'Admin':
+            if user.User_Role != 'Admin-User':
                 return Response({
                     'success': False,
                     'error': 'Access denied. Admin access required.'
@@ -672,7 +672,7 @@ class AdminSystemSettingsView(APIView):
             user = request.user
             
             # Check if user is admin
-            if user.User_Role != 'Admin':
+            if user.User_Role != 'Admin-User':
                 return Response({
                     'success': False,
                     'error': 'Access denied. Admin access required.'
@@ -711,7 +711,7 @@ class AdminSystemSettingsView(APIView):
             user = request.user
             
             # Check if user is admin
-            if user.User_Role != 'Admin':
+            if user.User_Role != 'Admin-User':
                 return Response({
                     'success': False,
                     'error': 'Access denied. Admin access required.'

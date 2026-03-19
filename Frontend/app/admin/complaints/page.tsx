@@ -1,10 +1,11 @@
-'use client'
+ 'use client'
 
-import { useState, useEffect } from 'react'
-import { Download, Filter, RefreshCw } from 'lucide-react'
-import ComplaintsTable from '../../../components/admin/complaints/ComplaintsTable'
-import ComplaintsFilters from '../../../components/admin/complaints/ComplaintsFilters'
-import ComplaintsKPI from '../../../components/admin/complaints/ComplaintsKPI'
+ import { useState, useEffect } from 'react'
+ import { Download, Filter, RefreshCw } from 'lucide-react'
+ import ComplaintsTable from '../../../components/admin/complaints/ComplaintsTable'
+ import ComplaintsFilters from '../../../components/admin/complaints/ComplaintsFilters'
+ import ComplaintsKPI from '../../../components/admin/complaints/ComplaintsKPI'
+ import api from '@/lib/axios'
 
 interface Complaint {
   id: number
@@ -27,6 +28,7 @@ interface KPIData {
   Pending_comp: number
   resolved_comp: number
   inprogress_comp: number
+  rejected_comp: number
   sla_compliance: number
 }
 
@@ -44,6 +46,7 @@ export default function AllComplaintsPage() {
     Pending_comp: 0,
     resolved_comp: 0,
     inprogress_comp: 0,
+    rejected_comp: 0,
     sla_compliance: 0,
   })
 
@@ -93,28 +96,31 @@ export default function AllComplaintsPage() {
       try {
         setLoadingKPI(true)
         setError(null)
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-        console.log('🔄 Fetching KPI data from:', `${API_BASE_URL}/api/admindashboardcard/`)
-        const response = await fetch(`${API_BASE_URL}/api/admindashboardcard/`)
-        
-        if (!response.ok) throw new Error('KPI fetch failed')
-        const data = await response.json()
-        
-        console.log('✅ KPI data received:', data)
-        
-        // Transform backend data to match expected format
-        const transformedData = {
-          total_comp: data.total_comp,
-          Pending_comp: data.Pending_comp,
-          resolved_comp: data.resolved_comp,
-          inprogress_comp: data.inprogress_comp,
-          sla_compliance: data.sla_compliance
+
+        const response = await api.get('/api/admindashboardcard/')
+        const data = response.data
+
+        const transformedData: KPIData = {
+          total_comp: data.total_comp ?? data.total_complaints ?? 0,
+          Pending_comp: data.Pending_comp ?? data.pending_comp ?? 0,
+          resolved_comp: data.resolved_comp ?? data.resolved_complaints ?? 0,
+          inprogress_comp: data.inprogress_comp ?? data.inprogress_complaints ?? 0,
+          rejected_comp: data.rejected_comp ?? data.rejected_complaints ?? 0,
+          sla_compliance: data.sla_compliance ?? 0,
         }
-        console.log('🔄 Transformed KPI data:', transformedData)
+
         setKpi(transformedData)
       } catch (err: any) {
         console.error('❌ KPI fetch error:', err)
         setError('Failed to fetch KPI data')
+        setKpi({
+          total_comp: 0,
+          Pending_comp: 0,
+          resolved_comp: 0,
+          inprogress_comp: 0,
+          rejected_comp: 0,
+          sla_compliance: 0,
+        })
       } finally {
         setLoadingKPI(false)
       }
@@ -129,25 +135,15 @@ export default function AllComplaintsPage() {
       try {
         setLoadingComplaints(true)
         setError(null)
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-        const response = await fetch(`${API_BASE_URL}/api/admincomplaints/`)
-        
-        if (!response.ok) throw new Error('Complaints fetch failed')
-        const data = await response.json()
-        
-        console.log('✅ Fetched complaints:', data)
-        setComplaintsList(data)
+
+        const response = await api.get('/api/admincomplaints/')
+        const data = response.data
+
+        setComplaintsList(Array.isArray(data) ? data : data.results ?? [])
       } catch (err: any) {
         console.error('❌ Complaints fetch error:', err)
         setError('Failed to fetch complaints data')
-        // Fallback to mock data if API fails
-        setComplaintsList([
-          { id: 1, comp_id: 'CMP-2024-001', title: 'Pothole on Main Street', Category: 'ROADS', Description: 'Large pothole causing traffic issues', location_address: 'Main Street', location_District: 'Ahmedabad', location_taluk: 'Ahmedabad', priority_level: 'High', status: 'Pending', current_time: '2024-02-25T10:30:00Z' },
-          { id: 2, comp_id: 'CMP-2024-002', title: 'Water Leakage at Park', Category: 'WATER', Description: 'Water pipe leakage in public park', location_address: 'City Park', location_District: 'Surat', location_taluk: 'Surat', priority_level: 'Medium', status: 'in-progress', current_time: '2024-02-24T14:20:00Z' },
-          { id: 3, comp_id: 'CMP-2024-003', title: 'Power Outage Area', Category: 'ELECTRICITY', Description: 'Frequent power cuts in residential area', location_address: 'Residential Area', location_District: 'Vadodara', location_taluk: 'Vadodara', priority_level: 'High', status: 'in-progress', current_time: '2024-02-23T09:15:00Z' },
-          { id: 4, comp_id: 'CMP-2024-004', title: 'Garbage Collection Delay', Category: 'SANITATION', Description: 'Garbage not collected for 3 days', location_address: 'Main Road', location_District: 'Gandhinagar', location_taluk: 'Gandhinagar', priority_level: 'Low', status: 'resolved', current_time: '2024-02-22T16:45:00Z' },
-          { id: 5, comp_id: 'CMP-2024-005', title: 'Street Light Not Working', Category: 'LIGHTING', Description: 'Street light not working for 2 weeks', location_address: 'Street Corner', location_District: 'Ahmedabad', location_taluk: 'Ahmedabad', priority_level: 'Medium', status: 'Pending', current_time: '2024-02-21T11:30:00Z' },
-        ])
+        setComplaintsList([])
       } finally {
         setLoadingComplaints(false)
       }
@@ -246,30 +242,33 @@ export default function AllComplaintsPage() {
   }
 
   const handleRefreshKPI = async () => {
-    // Refetch KPI data only
     try {
       setLoadingKPI(true)
       setError(null)
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-      console.log('🔄 Refreshing KPI data...')
-      const response = await fetch(`${API_BASE_URL}/api/admindashboardcard/`)
-      
-      if (!response.ok) throw new Error('KPI refresh failed')
-      const data = await response.json()
-      
-      console.log('✅ KPI data refreshed:', data)
-      
-      const transformedData = {
-        total_comp: data.total_comp,
-        Pending_comp: data.Pending_comp,
-        resolved_comp: data.resolved_comp,
-        inprogress_comp: data.inprogress_comp,
-        sla_compliance: data.sla_compliance
+
+      const response = await api.get('/api/admindashboardcard/')
+      const data = response.data
+
+      const transformedData: KPIData = {
+        total_comp: data.total_comp ?? data.total_complaints ?? 0,
+        Pending_comp: data.Pending_comp ?? data.pending_comp ?? 0,
+        resolved_comp: data.resolved_comp ?? data.resolved_complaints ?? 0,
+        inprogress_comp: data.inprogress_comp ?? data.inprogress_complaints ?? 0,
+        rejected_comp: data.rejected_comp ?? data.rejected_complaints ?? 0,
+        sla_compliance: data.sla_compliance ?? 0,
       }
       setKpi(transformedData)
     } catch (err: any) {
       console.error('❌ KPI refresh error:', err)
       setError('Failed to refresh KPI data')
+      setKpi({
+        total_comp: 0,
+        Pending_comp: 0,
+        resolved_comp: 0,
+        inprogress_comp: 0,
+        rejected_comp: 0,
+        sla_compliance: 0,
+      })
     } finally {
       setLoadingKPI(false)
     }

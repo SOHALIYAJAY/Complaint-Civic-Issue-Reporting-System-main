@@ -7,6 +7,7 @@ import {
   FileText,
   TrendingUp,
   TrendingDown,
+  AlertCircle,
 } from "lucide-react"
 import { getCardColors } from "@/lib/card-colors"
 
@@ -15,7 +16,7 @@ interface KpiCard {
   value: string
   trendUp: boolean
   icon: React.ReactNode
-  colorType: "users" | "officers" | "total"
+  colorType: "users" | "officers" | "total" | "inProgress" | "pending" | "resolved" | "escalated" | "sla" | "admins" | "high" | "medium" | "low"
   suffix?: string
 }
 
@@ -84,13 +85,19 @@ export default function OfficersKpiCards() {
             colorType: "officers",
           },
           {
+            label: "In-Active Officers",
+            value: (data.total_officers - data.active_officers).toString(),
+            trendUp: false,
+            icon: <AlertCircle className="w-5 h-5" />,
+            colorType: "inProgress",
+          },
+          {
             label: "Total Assigned",
             value: data.total_assigned.toString(),
             trendUp: true,
             icon: <FileText className="w-5 h-5" />,
             colorType: "total",
           },
-
         ])
       } catch (e) {
         setKpiData([])
@@ -104,7 +111,7 @@ export default function OfficersKpiCards() {
   if (loading) return <div>Loading KPI cards...</div>
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {kpiData.map((card, i) => {
         const colors = getCardColors(card.colorType)
         return (
@@ -147,7 +154,6 @@ export default function OfficersKpiCards() {
             <p className="text-2xl font-bold text-slate-800">
               <AnimatedValue target={card.value} suffix={card.suffix} />
             </p>
-            <div className={`h-1 ${colors.progressLine} mt-3 rounded-full opacity-80`}></div>
           </div>
         )
       })}

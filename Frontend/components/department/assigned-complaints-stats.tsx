@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import api from '@/lib/axios'
+import api, { apiGet } from '@/lib/api'
 import {
   FileText,
   Clock,
@@ -68,8 +68,7 @@ export default function AssignedComplaintsStats() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/api/department/dashboard/')
-      const data = response.data
+      const data = await apiGet('/api/department/dashboard/')
       
       // Extract stats from the response
       setStats({

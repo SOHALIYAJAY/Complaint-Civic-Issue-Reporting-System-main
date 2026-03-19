@@ -6,6 +6,20 @@ import { useRouter } from "next/navigation"
 export default function GoogleLoginBtn() {
   const router = useRouter()
 
+  const getRedirectPath = (user: any) => {
+    const userRole = user.User_Role || user.role || 'Civic-User'
+    
+    switch (userRole) {
+      case 'Department-User':
+        return '/department'
+      case 'Admin-User':
+        return '/admin'
+      case 'Civic-User':
+      default:
+        return '/user-details' // First go to user details, then dashboard
+    }
+  }
+
   const handleSuccess = async (credentialResponse: any) => {
     try {
       const response = await fetch('http://127.0.0.1:8000/api/google-login/', {
@@ -20,7 +34,10 @@ export default function GoogleLoginBtn() {
         localStorage.setItem('access_token', data.access_token)
         localStorage.setItem('refresh_token', data.refresh_token)
         localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/user-details')
+        
+        // Redirect based on user role
+        const redirectPath = getRedirectPath(data.user)
+        router.push(redirectPath)
       } else {
         console.error('Google login failed:', data.message)
         alert('Login failed. Please try again.')

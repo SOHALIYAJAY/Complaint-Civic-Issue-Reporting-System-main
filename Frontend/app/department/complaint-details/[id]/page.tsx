@@ -131,7 +131,7 @@ export default function ComplaintDetailsPage({ params }: { params: Promise<{ id:
         comp_name: data.comp_name,
         filed_on: data.filed_on,
         description: data.description,
-        upload_image: data.upload_image || data.image_video || null,
+        upload_image: data.upload_image,
         status: data.status,
         priority: data.priority,
         location_address: data.location_address,

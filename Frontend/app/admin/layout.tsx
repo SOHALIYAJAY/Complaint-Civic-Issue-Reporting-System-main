@@ -46,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div className="p-4 border-b border-primary-foreground/20">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center shadow-sm">
               <span className="text-white font-bold text-sm">G</span>
             </div>
             {sidebarOpen && (

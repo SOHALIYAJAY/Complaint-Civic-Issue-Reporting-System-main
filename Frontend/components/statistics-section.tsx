@@ -1,152 +1,247 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { AlertTriangle, TrendingUp, Users, FileText, CheckCircle, Clock } from 'lucide-react'
+
+interface StatData {
+  total_complaints: number
+  resolved_complaints: number
+  pending_complaints: number
+  in_progress_complaints: number
+  sla_compliance: number
+  total_categories: number
+  total_users: number
+  total_departments: number
+}
 
 interface StatCard {
   label: string
-  value: number
-  icon: string
+  value: number | string
+  icon: React.ReactNode
   color: string
+  bgColor: string
+  borderColor: string
+  suffix?: string
 }
 
 export default function StatisticsSection() {
   const [isVisible, setIsVisible] = useState(false)
-   const [compinfo, setCompinfo] = useState<any>({})
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-  
-  useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    const isTokenValid = Boolean(token && token !== 'undefined' && token !== 'null')
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    }
-    
-    if (isTokenValid) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-    
-    fetch(`${API_BASE_URL}/api/getcompinfo/`, { headers })
-      .then((res) => {
-        if (!res.ok) {
-          if (res.status === 401) {
-            // If unauthorized, try to get public statistics instead
-            console.warn('Authentication failed, using public statistics')
-            return fetch(`${API_BASE_URL}/api/complaintinfo/`, {
-              headers: { 'Content-Type': 'application/json' }
-            })
-          }
-          throw new Error(`HTTP error! status: ${res.status}`)
-        }
-        return res.json()
-      })
-      .then((data) => { 
-        console.log('Statistics data:', data)
-        setCompinfo(data)
-      })
-      .catch((error) => {
-        console.error("Error fetching statistics:", error)
-        // Set default values on error
-        setCompinfo({
-          total_complaints: 0,
-          Resolved_complaints: 0,
-          Pending_complaints: 0,
-          SLA_complaince: 0,
-          total_categories: 0
-        })
-      })
-  }, [])
-
-  const stats: StatCard[] = [
-    {
-      label: 'Total Complaints',
-      value: compinfo.total_complaints  || 0,
-      icon: '📝',
-      color: 'from-blue-500 to-blue-600',
-    },
-    {
-      label: 'Resolved',
-      value: compinfo.Resolved_complaints || 0,
-      icon: '✅',
-      color: 'from-green-500 to-green-600',
-    },
-    {
-      label: 'Pending',
-      value: compinfo.Pending_complaints || 0,
-      icon: '⏳',
-      color: 'from-amber-500 to-amber-600',
-    },
-    {
-      label: 'SLA Compliance',
-      value: compinfo.SLA_complaince ? parseFloat(compinfo.SLA_complaince.toFixed(2)) : 0,
-      icon: '📊',
-      color: 'from-purple-500 to-purple-600',
-    },
-    {
-      label: 'Active Departments',
-      value: compinfo.total_categories || 0,
-      icon: '🏢',
-      color: 'from-indigo-500 to-indigo-600',
-    },
-  ]
+  const [stats, setStats] = useState<StatData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
   
   useEffect(() => {
     setIsVisible(true)
+    fetchStatistics()
   }, [])
-  
+
+  const fetchStatistics = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const token = localStorage.getItem('access_token')
+      const isTokenValid = Boolean(token && token !== 'undefined' && token !== 'null')
+      
+      // Try authenticated endpoint first, fallback to public endpoint
+      let endpoint = `${API_BASE_URL}/api/getcompinfo/`
+      let headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (isTokenValid) {
+        headers['Authorization'] = `Bearer ${token}`
+      } else {
+        endpoint = `${API_BASE_URL}/api/complaintinfo/`
+      }
+      
+      const response = await fetch(endpoint, { headers })
+      
+      if (!response.ok) {
+        if (response.status === 401 && isTokenValid) {
+          // Fallback to public endpoint if unauthorized
+          const publicResponse = await fetch(`${API_BASE_URL}/api/complaintinfo/`, {
+            headers: { 'Content-Type': 'application/json' }
+          })
+          
+          if (!publicResponse.ok) {
+            throw new Error(`HTTP error! status: ${publicResponse.status}`)
+          }
+          
+          const data = await publicResponse.json()
+          setStats(data)
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+      } else {
+        const data = await response.json()
+        setStats(data)
+      }
+      
+    } catch (error) {
+      console.error("Error fetching statistics:", error)
+      setError('Failed to load statistics')
+      
+      // Set fallback data
+      setStats({
+        total_complaints: 0,
+        resolved_complaints: 0,
+        pending_complaints: 0,
+        in_progress_complaints: 0,
+        sla_compliance: 0,
+        total_categories: 0,
+        total_users: 0,
+        total_departments: 0
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatNumber = (num: number | undefined | null) => {
+    if (num === undefined || num === null || isNaN(num)) {
+      return '0'
+    }
+    return num.toLocaleString()
+  }
+
+  const statCards: StatCard[] = stats ? [
+    {
+      label: 'Total Complaints',
+      value: formatNumber(stats.total_complaints || 0),
+      icon: <FileText className="w-5 h-5" />,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-200'
+    },
+    {
+      label: 'Resolved',
+      value: formatNumber(stats.resolved_complaints || 0),
+      icon: <CheckCircle className="w-5 h-5" />,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      borderColor: 'border-green-200'
+    },
+    {
+      label: 'Pending',
+      value: formatNumber(stats.pending_complaints || 0),
+      icon: <Clock className="w-5 h-5" />,
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-200'
+    },
+    {
+      label: 'SLA Compliance',
+      value: `${stats.sla_compliance || 0}%`,
+      icon: <TrendingUp className="w-5 h-5" />,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-200'
+    },
+    {
+      label: 'Categories',
+      value: formatNumber(stats.total_categories || 0),
+      icon: <Users className="w-5 h-5" />,
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      borderColor: 'border-indigo-200'
+    },
+    {
+      label: 'Users',
+      value: formatNumber(stats.total_users || 0),
+      icon: <Users className="w-5 h-5" />,
+      color: 'text-pink-600',
+      bgColor: 'bg-pink-50',
+      borderColor: 'border-pink-200'
+    }
+  ] : []
+
+  if (loading) {
+    return (
+      <section className={`py-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Platform Statistics</h2>
+            <p className="text-gray-600">Loading statistics...</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+                <div className="w-12 h-12 bg-gray-200 rounded-lg mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-6 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className={`py-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Platform Statistics</h2>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <span className="text-red-700">{error}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <section className="py-16 sm:py-24 bg-muted/40">
+    <section className={`py-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Live System Statistics
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Real-time data from our smart governance platform
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Platform Statistics</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Real-time insights into civic complaint management and resolution across Gujarat
           </p>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-          {stats.map((stat, index) => (
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+          {statCards.map((card, index) => (
             <div
-              key={stat.label}
-              className={`group relative ${
-                isVisible ? 'scale-in' : 'opacity-0 scale-95'
-              }`}
+              key={card.label}
+              className={`bg-white rounded-xl border ${card.borderColor} p-6 hover:shadow-lg transition-all duration-300 hover:scale-105`}
               style={{
-                transitionDelay: isVisible ? `${index * 50}ms` : '0ms',
-                transitionDuration: '500ms',
+                animationDelay: `${index * 100}ms`,
+                animation: 'fadeInUp 0.6s ease-out forwards'
               }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl blur-xl group-hover:blur-2xl transition-all duration-300 opacity-0 group-hover:opacity-100"></div>
-              
-              <div className={`relative bg-white rounded-xl p-6 border border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg`}>
-                <div className={`inline-block bg-gradient-to-br ${stat.color} rounded-lg p-3 mb-4 text-2xl`}>
-                  {stat.icon}
-                </div>
-                
-                <p className="text-muted-foreground text-sm font-medium mb-2">
-                  {stat.label}
+              <div className={`${card.bgColor} ${card.color} w-12 h-12 rounded-lg flex items-center justify-center mb-4`}>
+                {card.icon}
+              </div>
+              <div className="space-y-1">
+                <p className="text-2xl font-bold text-gray-900">
+                  {card.value}
+                  {card.suffix && <span className="text-lg font-normal text-gray-600">{card.suffix}</span>}
                 </p>
-                
-                <p className="text-3xl font-bold text-foreground">
-                  {stat.value}
-                </p>
-
-                <div className="mt-4 h-1 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary to-secondary"
-                    style={{
-                      width: '100%',
-                      animation: isVisible ? `slideInUp 0.8s ease-out ${index * 100}ms both` : 'none',
-                    }}
-                  ></div>
-                </div>
+                <p className="text-sm text-gray-600">{card.label}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
+      
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </section>
   )
 }

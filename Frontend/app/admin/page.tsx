@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { Users, FileText, Target, Activity, RefreshCw } from 'lucide-react'
+import { TrendingUp, Users, FileText, Clock, CheckCircle2, Activity, AlertTriangle, Calendar, Target, Award, RefreshCw, Eye } from 'lucide-react'
+import Link from 'next/link'
+import api, { apiGet } from '@/lib/api'
+import StatsCard from '@/components/ui/stats-card'
 
 interface KPIData {
   total_comp: number
@@ -60,26 +63,17 @@ export default function AdminDashboard() {
   const [roleData, setRoleData] = useState<RoleData[]>([])
   const [recentComplaints, setRecentComplaints] = useState<RecentComplaint[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<string>('')
   const [mounted, setMounted] = useState(false)
 
   const fetchData = async () => {
     try {
       setLoading(true)
+      setError(null)
 
-
-  
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-      const token = localStorage.getItem('access_token')
-      
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
-      }
-      
       // Fetch dashboard cards data
-      const kpiResponse = await fetch(`${API_BASE}/api/admindashboardcard/`, { headers })
-      const kpiResult = await kpiResponse.json()
+      const kpiResult = await apiGet('/api/admindashboardcard/')
       
       const totalComplaints = kpiResult.total_complaints || kpiResult.total_comp || 0
       const resolvedComplaints = kpiResult.resolved_complaints || kpiResult.resolved_comp || 0
@@ -93,9 +87,8 @@ export default function AdminDashboard() {
         inprogress_comp: inprogressComplaints
       })
 
-      // Fetch complaint trends data (replacing monthly user registrations)
-      const trendsResponse = await fetch(`${API_BASE}/api/complaint-status-trends/`, { headers })
-      const trendsResult = await trendsResponse.json()
+      // Fetch complaint trends data
+      const trendsResult = await apiGet('/api/complaint-status-trends/')
       
       const transformedTrendsData = Array.isArray(trendsResult) 
         ? trendsResult.map((item: any) => ({
@@ -107,8 +100,7 @@ export default function AdminDashboard() {
       setMonthlyData(transformedTrendsData)
 
       // Fetch user role distribution
-      const roleResponse = await fetch(`${API_BASE}/api/user-role-distribution/`, { headers })
-      const roleResult = await roleResponse.json()
+      const roleResult = await apiGet('/api/user-role-distribution/')
       
       const transformedRoleData = [
         { name: 'Regular Users', value: roleResult.regular_users || 0, color: '#3B82F6' },
@@ -118,8 +110,7 @@ export default function AdminDashboard() {
       setRoleData(transformedRoleData)
 
       // Fetch recent complaints
-      const recentResponse = await fetch(`${API_BASE}/api/recent-complaints-admin/`, { headers })
-      const recentResult = await recentResponse.json()
+      const recentResult = await apiGet('/api/recent-complaints-admin/')
       
       const transformedRecentData = Array.isArray(recentResult.data) 
         ? recentResult.data.slice(0, 6).map((item: any) => ({
@@ -139,33 +130,12 @@ export default function AdminDashboard() {
       setMounted(true)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
-      // Set fallback data to prevent chart errors
-      setMonthlyData([
-        { month: 'Jan', complaints: 45 },
-        { month: 'Feb', complaints: 52 },
-        { month: 'Mar', complaints: 38 },
-        { month: 'Apr', complaints: 65 },
-        { month: 'May', complaints: 48 },
-        { month: 'Jun', complaints: 58 }
-      ])
-      setRoleData([
-        { name: 'Regular Users', value: 1200, color: '#3B82F6' },
-        { name: 'Officers', value: 45, color: '#10B981' },
-        { name: 'Admins', value: 8, color: '#F59E0B' }
-      ])
-      setKpiData({
-        total_comp: 1250,
-        resolved_comp: 890,
-        Pending_comp: 245,
-        inprogress_comp: 115
-      })
-      setRecentComplaints([
-        { id: 1, title: 'Pothole on Main Street', description: 'Large pothole causing traffic issues', status: 'Pending', priority_level: 'High', location_District: 'Ahmedabad', created_at: '2024-03-19T10:30:00Z' },
-        { id: 2, title: 'Water Leakage', description: 'Water pipe leaking for 3 days', status: 'in-progress', priority_level: 'Medium', location_District: 'Surat', created_at: '2024-03-19T09:15:00Z' },
-        { id: 3, title: 'Street Light Issue', description: 'Multiple street lights not working', status: 'resolved', priority_level: 'Low', location_District: 'Vadodara', created_at: '2024-03-19T08:45:00Z' },
-        { id: 4, title: 'Garbage Collection', description: 'Garbage not collected for a week', status: 'Pending', priority_level: 'Medium', location_District: 'Rajkot', created_at: '2024-03-19T08:00:00Z' },
-        { id: 5, title: 'Road Damage', description: 'Road severely damaged due to rain', status: 'in-progress', priority_level: 'High', location_District: 'Gandhinagar', created_at: '2024-03-19T07:30:00Z' }
-      ])
+      setError('Failed to load dashboard data')
+      
+      // Set empty data to prevent chart errors
+      setMonthlyData([])
+      setRoleData([])
+      setRecentComplaints([])
     } finally {
       setLoading(false)
     }
@@ -175,266 +145,229 @@ export default function AdminDashboard() {
     fetchData()
   }, [])
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  function StatCard({ title, value, icon, color, borderColor, loading = false }: StatCardProps) {
-    return (
-      <div className="glass-effect rounded-lg border border-border p-6 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
-        <div className="flex items-start justify-between mb-4">
-          <div className={`p-3 rounded-lg ${color}`}>
-            {loading ? <RefreshCw className="w-6 h-6 animate-spin text-white" /> : icon}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
-          <p className="text-3xl font-bold text-foreground">{loading ? '...' : value}</p>
-        </div>
-        <div className={`h-1 ${borderColor} mt-4 rounded-full opacity-80`}></div>
-      </div>
-    )
-  }
-
-  function ChartCard({ title, subtitle, children, className = "", loading = false }: ChartCardProps) {
-    return (
-      <div className={`bg-white rounded-xl border border-gray-100 shadow-sm p-6 ${className}`}>
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-          {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
-        </div>
-        <div className="h-80">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
-            </div>
-          ) : (
-            children
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  const kpiCards = [
-    {
-      title: 'Total Complaints',
-      value: kpiData.total_comp?.toLocaleString() || '0',
-      icon: <FileText className="w-6 h-6 text-blue-600" />,
-      color: 'bg-blue-500/10',
-      borderColor: 'bg-blue-500'
-    },
-    {
-      title: 'Resolved Complaints',
-      value: kpiData.resolved_comp?.toLocaleString() || '0',
-      icon: <Target className="w-6 h-6 text-green-600" />,
-      color: 'bg-green-500/10',
-      borderColor: 'bg-green-500'
-    },
-    {
-      title: 'Pending Complaint',
-      value: kpiData.Pending_comp?.toLocaleString() || '0',
-      icon: <Activity className="w-6 h-6 text-orange-600" />,
-      color: 'bg-orange-500/10',
-      borderColor: 'bg-orange-500'
-    },
-    {
-      title: 'In Progress',
-      value: kpiData.inprogress_comp?.toLocaleString() || '0',
-      icon: <Users className="w-6 h-6 text-purple-600" />,
-      color: 'bg-purple-500/10',
-      borderColor: 'bg-purple-500'
+  const formatNumber = (num: number | undefined | null) => {
+    if (num === undefined || num === null || isNaN(num)) {
+      return '0'
     }
-  ]
+    return num.toLocaleString()
+  }
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-1">Monitor and manage civic complaints system</p>
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'resolved':
+        return 'bg-green-100 text-green-800'
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'in-progress':
+      case 'iin-progress':
+        return 'bg-blue-100 text-blue-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority?.toLowerCase()) {
+      case 'high':
+        return 'bg-red-100 text-red-800'
+      case 'medium':
+        return 'bg-orange-100 text-orange-800'
+      case 'low':
+        return 'bg-blue-100 text-blue-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, children, className, loading }) => (
+    <div className={`bg-white rounded-xl border border-gray-200 p-6 ${className}`}>
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
+      </div>
+      {loading ? (
+        <div className="h-64 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
         </div>
-        <div className="flex items-center gap-4">
-          {mounted && <span className="text-sm text-gray-500">Last updated: {lastUpdated}</span>}
+      ) : (
+        children
+      )}
+    </div>
+  )
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Dashboard Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
-            Refresh
+            Retry
           </button>
         </div>
       </div>
+    )
+  }
 
-
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {kpiCards.map((card, index) => (
-        <StatCard key={index} {...card} loading={loading} />
-      ))}
-    </div>
-
-    {/* Recent Complaints Section */}
-    <div className="mb-8">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Recent Complaints</h2>
-          <span className="text-sm text-gray-500">Latest 6 complaints</span>
-        </div>
-        
-        {loading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="animate-pulse">
-                <div className="flex items-center space-x-4">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : recentComplaints.length > 0 ? (
-          <div className="space-y-4">
-            {recentComplaints.map((complaint) => (
-              <div key={complaint.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-gray-900">{complaint.title}</h3>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      complaint.status === 'Resolved' ? 'bg-green-100 text-green-800' :
-                      complaint.status === 'In-progress' ? 'bg-blue-100 text-blue-800' :
-                      complaint.status === 'Pending' ? 'bg-orange-100 text-orange-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {complaint.status}
-                    </span>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      complaint.priority_level === 'High' ? 'bg-red-100 text-red-800' :
-                      complaint.priority_level === 'Medium' ? 'bg-amber-100 text-amber-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {complaint.priority_level}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 line-clamp-1">{complaint.description}</p>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                    <span>📍 {complaint.location_District}</span>
-                    <span>📅 {new Date(complaint.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="text-gray-400 mb-2">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <p className="text-gray-500">No recent complaints found</p>
-          </div>
-        )}
-      </div>
-    </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8">
-            <ChartCard 
-              title="Complaint Status Trends" 
-              subtitle="Monthly complaint trends over time" 
-              loading={loading}
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+          <div className="flex items-center gap-4 text-sm text-gray-600">
+            <span>Real-time monitoring</span>
+            <span>•</span>
+            <span>Last updated: {lastUpdated}</span>
+            <button
+              onClick={fetchData}
+              className="flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{ fill: '#6B7280', fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis 
-                    tick={{ fill: '#6B7280', fontSize: 12 }}
-                    axisLine={{ stroke: '#E5E7EB' }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '1px solid #E5E7EB',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}
-                  />
-                  <Bar 
-                    dataKey="complaints" 
-                    fill="#3B82F6" 
-                    radius={[8, 8, 0, 0]}
-                    animationDuration={800}
-                  />
+              <RefreshCw className="w-3 h-3" />
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatsCard
+            title="Total Complaints"
+            value={formatNumber(kpiData.total_comp || 0)}
+            icon={<FileText className="w-6 h-6" />}
+            color="text-white"
+            bgColor="bg-sidebar-primary"
+            borderColor="border-t-[#1e40af]"
+            loading={loading}
+          />
+          <StatsCard
+            title="Resolved"
+            value={formatNumber(kpiData.resolved_comp || 0)}
+            icon={<Target className="w-6 h-6" />}
+            color="text-white"
+            bgColor="bg-green-600"
+            borderColor="border-t-[#16a34a]"
+            loading={loading}
+          />
+          <StatsCard
+            title="Pending"
+            value={formatNumber(kpiData.Pending_comp || 0)}
+            icon={<Activity className="w-6 h-6" />}
+            color="text-white"
+            bgColor="bg-yellow-600"
+            borderColor="border-t-[#f59e0b]"
+            loading={loading}
+          />
+          <StatsCard
+            title="In Progress"
+            value={formatNumber(kpiData.inprogress_comp || 0)}
+            icon={<Clock className="w-6 h-6" />}
+            color="text-white"
+            bgColor="bg-orange-600"
+            borderColor="border-t-[#3b82f6]"
+            loading={loading}
+          />
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <ChartCard
+            title="Complaint Trends"
+            subtitle="Monthly complaint volume"
+            loading={loading}
+          >
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="complaints" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
-            </ChartCard>
-          </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                No trend data available
+              </div>
+            )}
+          </ChartCard>
 
-          <div className="lg:col-span-4">
-            <ChartCard 
-              title="User Role Distribution" 
-              subtitle="Breakdown of user types" 
-              loading={loading}
-            >
-              <div className="h-full flex flex-col">
-                <div className="flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={roleData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={3}
-                        dataKey="value"
-                        animationBegin={0}
-                        animationDuration={800}
-                      >
-                        {roleData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '8px',
-                        padding: '8px 12px'
-                      }}
-                      formatter={(value: number) => [value.toLocaleString(), 'Users']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+          <ChartCard
+            title="User Distribution"
+            subtitle="Users by role"
+            loading={loading}
+          >
+            {roleData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={roleData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {roleData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                No user data available
               </div>
-              
-              <div className="mt-6 space-y-3">
-                {roleData.map((role, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: role.color }}
-                      />
-                      <span className="text-sm text-gray-700">{role.name}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {role.value.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </ChartCard>
         </div>
+
+        {/* Recent Complaints */}
+        <ChartCard
+          title="Recent Complaints"
+          subtitle="Latest filed complaints"
+          loading={loading}
+        >
+          <div className="space-y-3">
+            {recentComplaints.length > 0 ? (
+              recentComplaints.map((complaint) => (
+                <div key={complaint.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{complaint.title}</h4>
+                    <p className="text-sm text-gray-600 truncate">{complaint.description}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <span className="text-xs text-gray-500">{complaint.location_District}</span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(complaint.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(complaint.priority_level)}`}>
+                      {complaint.priority_level}
+                    </span>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(complaint.status)}`}>
+                      {complaint.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                No recent complaints found
+              </div>
+            )}
+          </div>
+        </ChartCard>
       </div>
     </div>
   )

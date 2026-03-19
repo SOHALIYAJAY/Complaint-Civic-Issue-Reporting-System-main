@@ -57,18 +57,26 @@ export default function OfficersAnalytics() {
     try {
       setLoading(true)
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-      const response = await fetch(`${API_BASE}/api/officeranalytics/`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch analytics data')
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
       }
-      
+      if (token && token !== 'undefined' && token !== 'null') {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch(`${API_BASE}/api/officeranalytics/`, { headers })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch analytics data (${response.status})`)
+      }
+
       const data = await response.json()
       console.log('Officer analytics data:', data)
       setAnalyticsData(data)
     } catch (error) {
       console.error('Error fetching analytics:', error)
-      // Set fallback data
       setAnalyticsData({
         total_officers: 0,
         available_officers: 0,
@@ -76,7 +84,7 @@ export default function OfficersAnalytics() {
         officers_with_complaints: 0,
         department_stats: {},
         workload_data: [],
-        availability_percentage: 0
+        availability_percentage: 0,
       })
     } finally {
       setLoading(false)
@@ -90,11 +98,6 @@ export default function OfficersAnalytics() {
   if (!analyticsData) {
     return <div className="text-center py-8 text-slate-400">No analytics data available</div>
   }
-
-  // Calculate top performers based on workload
-  const topPerformers = [...analyticsData.workload_data]
-    .sort((a, b) => b.active_complaints - a.active_complaints)
-    .slice(0, 3)
 
   // Prepare data for charts
   const availabilityData = [
@@ -170,30 +173,7 @@ export default function OfficersAnalytics() {
         </Card>
       </div>
 
-      {/* Top Performers */}
-      <Card title="Officers with Most Active Complaints">
-        <div className="space-y-3">
-          {topPerformers.map((officer, index) => (
-            <div key={officer.officer_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium text-blue-600">
-                  {index + 1}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{officer.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {officer.is_available ? 'Available' : 'Unavailable'}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-gray-900">{officer.active_complaints}</p>
-                <p className="text-xs text-gray-500">Active Complaints</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+      {/* Top performers section removed per requirements */}
     </div>
   )
 }

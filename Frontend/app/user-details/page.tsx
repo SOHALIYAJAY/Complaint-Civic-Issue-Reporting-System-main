@@ -19,6 +19,20 @@ export default function UserDetailsPage() {
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
+  const getRedirectPath = (user: any) => {
+    const userRole = user.User_Role || user.role || 'Civic-User'
+    
+    switch (userRole) {
+      case 'Department-User':
+        return '/department'
+      case 'Admin-User':
+        return '/admin'
+      case 'Civic-User':
+      default:
+        return '/dashboard'
+    }
+  }
+
   useEffect(() => {
     const checkUserDetails = async () => {
       const token = localStorage.getItem('access_token')
@@ -40,9 +54,18 @@ export default function UserDetailsPage() {
           const data = await response.json()
           if (data.success && data.data) {
             const user = data.data
-            // Check if user has already filled details
-            if (user.mobile_number && user.address && user.district && user.taluka && user.ward_number) {
-              router.push('/dashboard')
+            
+            // Check if user has already filled details (for Civic Users)
+            if (user.User_Role === 'Civic-User' || user.role === 'Civic-User') {
+              // For Civic Users, check if they have filled details
+              if (user.mobile_number && user.address && user.district && user.taluka && user.ward_number) {
+                const redirectPath = getRedirectPath(user)
+                router.push(redirectPath)
+              }
+            } else {
+              // For Department and Admin Users, redirect directly to their dashboard
+              const redirectPath = getRedirectPath(user)
+              router.push(redirectPath)
             }
           }
         }
@@ -123,7 +146,15 @@ export default function UserDetailsPage() {
       
       setSuccess(true)
       setTimeout(() => {
-        router.push('/dashboard')
+        // Get user data and redirect based on role
+        const userData = localStorage.getItem('user')
+        if (userData) {
+          const user = JSON.parse(userData)
+          const redirectPath = getRedirectPath(user)
+          router.push(redirectPath)
+        } else {
+          router.push('/dashboard') // Fallback
+        }
       }, 2000)
     } catch (err) {
       console.error('[v0] User details error:', err)

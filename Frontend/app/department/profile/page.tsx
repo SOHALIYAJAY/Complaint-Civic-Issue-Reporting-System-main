@@ -1,142 +1,259 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { 
   User, Camera, Shield, Lock, Mail, Phone, MapPin, Building, Calendar, Clock, 
-  RefreshCw, Save, CheckCircle2, FileText, TrendingUp, Users, Award
+  RefreshCw, Save, CheckCircle2, FileText, TrendingUp, Users, Award, Edit2,
+  AlertTriangle, Activity, Target, Briefcase, Upload, Image as ImageIcon
 } from "lucide-react"
+import api from '@/lib/axios'
+
+// Types
+interface DepartmentInfo {
+  name: string
+  category: string
+  description: string
+  contact_email: string
+  contact_phone: string
+}
+
+interface ComplaintStats {
+  total: number
+  resolved: number
+  pending: number
+  in_progress: number
+  performance_score: number
+}
 
 interface UserProfile {
+  id: number
+  username: string
   name: string
   email: string
   phone: string
-  department: string
   role: string
+  department: DepartmentInfo | null
   address: string
-  joinedDate: string
-  lastLogin: string
-  totalComplaints: number
-  resolvedComplaints: number
-  pendingComplaints: number
-  performanceScore: number
+  district: string
+  taluka: string
+  ward_number: string
+  joined_date: string
+  last_login: string
+  is_active: boolean
+  complaint_stats: ComplaintStats
+}
+
+interface EditableFields {
+  name: string
+  phone: string
+  address: string
+  district: string
+  taluka: string
+  ward_number: string
 }
 
 export default function DepartmentProfilePage() {
-  const [profile, setProfile] = useState<UserProfile>({
-    name: "",
-    email: "",
-    phone: "",
-    department: "",
-    role: "",
-    address: "",
-    joinedDate: "",
-    lastLogin: "",
-    totalComplaints: 0,
-    resolvedComplaints: 0,
-    pendingComplaints: 0,
-    performanceScore: 0
-  })
-  const [loading, setLoading] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState<EditableFields>({
+    name: '',
+    phone: '',
+    address: '',
+    district: '',
+    taluka: '',
+    ward_number: ''
+  })
 
-  // Fallback data for immediate display
-  const fallbackProfile: UserProfile = {
-    name: "Rajesh Kumar",
-    email: "rajesh.kumar@civic.gov.in",
-    phone: "+91 98765 43211",
-    department: "Public Works Department",
-    role: "Department Officer",
-    address: "Sector 17, Gandhinagar, Gujarat",
-    joinedDate: "2020-01-15",
-    lastLogin: "2024-03-19 10:30 AM",
-    totalComplaints: 127,
-    resolvedComplaints: 89,
-    pendingComplaints: 38,
-    performanceScore: 85.3
-  }
+  // Image states
+  const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [departmentImage, setDepartmentImage] = useState<string | null>(null)
+  const [performanceImage, setPerformanceImage] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null)
 
-  // Initialize with fallback data immediately
-  useEffect(() => {
-    setProfile(fallbackProfile)
-    setLoading(false)
-    
-    // Try to load real user data in background
-    loadUserData()
-  }, [])
-
-  const loadUserData = async () => {
+  // Fetch user profile data
+  const fetchProfile = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      if (!token) return
-
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+      setLoading(true)
+      setError(null)
       
-      // Load user profile (you may need to create this endpoint)
-      const response = await fetch(`${API_BASE}/api/user/profile/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await api.get('/api/department/user-profile/')
       
-      if (response.ok) {
-        const userData = await response.json()
-        setProfile({
-          ...userData,
-          totalComplaints: userData.total_complaints || 0,
-          resolvedComplaints: userData.resolved_complaints || 0,
-          pendingComplaints: userData.pending_complaints || 0,
-          performanceScore: userData.performance_score || 0
+      if (response.data) {
+        setProfile(response.data)
+        setEditForm({
+          name: response.data.name || '',
+          phone: response.data.phone || '',
+          address: response.data.address || '',
+          district: response.data.district || '',
+          taluka: response.data.taluka || '',
+          ward_number: response.data.ward_number || ''
         })
       }
-      
-    } catch (error) {
-      console.log('Using fallback data due to API unavailability')
-    }
-  }
-
-  const handleSave = async () => {
-    setLoading(true)
-    setSaved(false)
-    
-    try {
-      const token = localStorage.getItem('access_token')
-      
-      // Save user profile
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/user/update-profile/`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: profile.name,
-          email: profile.email,
-          phone: profile.phone,
-          address: profile.address
-        })
-      })
-      
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    } catch (error) {
-      console.error('Error saving profile:', error)
-      setError('Failed to save profile')
+    } catch (err: any) {
+      console.error('Error fetching profile:', err)
+      setError(err.response?.data?.message || 'Failed to load profile data')
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  useEffect(() => {
+    fetchProfile()
+  }, [fetchProfile])
+
+  // Handle profile update
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      setError(null)
+      setSuccess(null)
+      
+      const response = await api.put('/api/department/user-profile/', editForm)
+      
+      if (response.data.success) {
+        setSuccess('Profile updated successfully!')
+        setIsEditing(false)
+        // Refresh profile data
+        await fetchProfile()
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000)
+      }
+    } catch (err: any) {
+      console.error('Error saving profile:', err)
+      setError(err.response?.data?.message || 'Failed to update profile')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  if (loading && !profile.name) {
+  // Handle form input changes
+  const handleInputChange = (field: keyof EditableFields, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Cancel editing
+  const handleCancel = () => {
+    if (profile) {
+      setEditForm({
+        name: profile.name || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        district: profile.district || '',
+        taluka: profile.taluka || '',
+        ward_number: profile.ward_number || ''
+      })
+    }
+    setIsEditing(false)
+    setError(null)
+  }
+
+  // Handle image upload
+  const handleImageUpload = async (imageType: string, file: File) => {
+    try {
+      setUploadingImage(imageType)
+      
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('image_type', imageType)
+      
+      const response = await api.post('/api/department/upload-image/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      
+      if (response.data.image_url) {
+        switch (imageType) {
+          case 'profile':
+            setProfileImage(response.data.image_url)
+            break
+          case 'department':
+            setDepartmentImage(response.data.image_url)
+            break
+          case 'performance':
+            setPerformanceImage(response.data.image_url)
+            break
+        }
+      }
+    } catch (err: any) {
+      console.error('Error uploading image:', err)
+      setError('Failed to upload image')
+    } finally {
+      setUploadingImage(null)
+    }
+  }
+
+  // Handle image change
+  const handleImageChange = (imageType: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      handleImageUpload(imageType, file)
+    }
+  }
+
+  // Get role display name
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'Department-User':
+        return 'Department Officer'
+      case 'Admin-User':
+        return 'System Administrator'
+      case 'Civic-User':
+        return 'Civic User'
+      default:
+        return role
+    }
+  }
+
+  // Get status color
+  const getStatusColor = (isActive: boolean) => {
+    return isActive 
+      ? 'bg-green-100 text-green-800 border-green-200'
+      : 'bg-red-100 text-red-800 border-red-200'
+  }
+
+  // Loading state
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <RefreshCw className="w-8 h-8 animate-spin text-sidebar-primary mx-auto mb-4" />
           <p className="text-gray-600">Loading your profile...</p>
         </div>
       </div>
     )
+  }
+
+  // Error state
+  if (error && !profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Profile</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={fetchProfile}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return null
   }
 
   return (
@@ -146,251 +263,321 @@ export default function DepartmentProfilePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-sidebar-primary rounded-lg flex items-center justify-center">
                 <User className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-                <p className="text-gray-600">Manage your personal information and view your performance</p>
+                <h1 className="text-2xl font-bold text-gray-900">Department Profile</h1>
+                <p className="text-sm text-gray-600">Manage your professional information</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </button>
+              {!isEditing ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit Profile
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCancel}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Personal Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-              <span className="text-sm font-medium text-green-600">Active</span>
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+              <p className="text-green-800">{success}</p>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">{profile.totalComplaints}</h3>
-            <p className="text-gray-600 text-sm">Total Complaints</p>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-green-600" />
-              </div>
-              <span className="text-sm font-medium text-green-600">+12%</span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">{profile.resolvedComplaints}</h3>
-            <p className="text-gray-600 text-sm">Resolved</p>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-orange-600" />
-              </div>
-              <span className="text-sm font-medium text-orange-600">Pending</span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">{profile.pendingComplaints}</h3>
-            <p className="text-gray-600 text-sm">In Progress</p>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Award className="w-5 h-5 text-purple-600" />
-              </div>
-              <span className="text-sm font-medium text-green-600">Excellent</span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">{profile.performanceScore}%</h3>
-            <p className="text-gray-600 text-sm">Performance Score</p>
           </div>
         </div>
+      )}
 
-        {/* User Profile Section */}
+      {error && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <p className="text-red-800">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Personal Information */}
-          <div className="lg:col-span-1">
+          {/* Main Profile Information */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Personal Information Card */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">Personal Information</h2>
-
-                {/* Avatar Section */}
-                <div className="flex flex-col items-center gap-4 mb-6">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-white font-bold text-3xl">
-                      {profile.name ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : "DP"}
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <User className="w-5 h-5 text-sidebar-primary" />
+                  Personal Information
+                </h2>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
+                      />
+                    ) : (
+                      <p className="text-gray-900">{profile.name || 'Not specified'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <p className="text-gray-900">{profile.username}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <p className="text-gray-900">{profile.email}</p>
                     </div>
-                    <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white hover:bg-blue-700 transition-colors">
-                      <Camera className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        value={editForm.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <p className="text-gray-900">{profile.phone || 'Not specified'}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  {isEditing ? (
+                    <textarea
+                      value={editForm.address}
+                      onChange={(e) => handleInputChange('address', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
+                    />
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400 mt-1" />
+                      <p className="text-gray-900">{profile.address || 'Not specified'}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm.district}
+                        onChange={(e) => handleInputChange('district', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
+                      />
+                    ) : (
+                      <p className="text-gray-900">{profile.district || 'Not specified'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Taluka</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm.taluka}
+                        onChange={(e) => handleInputChange('taluka', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
+                      />
+                    ) : (
+                      <p className="text-gray-900">{profile.taluka || 'Not specified'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ward Number</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm.ward_number}
+                        onChange={(e) => handleInputChange('ward_number', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sidebar-primary focus:border-sidebar-primary"
+                      />
+                    ) : (
+                      <p className="text-gray-900">{profile.ward_number || 'Not specified'}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Profile Picture Card */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Camera className="w-5 h-5 text-sidebar-primary" />
+                  Profile Picture
+                </h2>
+              </div>
+              <div className="p-6">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative">
+                    <div className="w-32 h-32 rounded-full bg-sidebar-primary flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                      {profileImage ? (
+                        <img 
+                          src={profileImage} 
+                          alt="Profile" 
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span>{profile.name ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase() : profile.username.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      id="profile-image-input"
+                      accept="image/*"
+                      onChange={(e) => handleImageChange('profile', e)}
+                      className="hidden"
+                    />
+                    <button 
+                      onClick={() => document.getElementById('profile-image-input')?.click()}
+                      className="absolute bottom-0 right-0 w-8 h-8 bg-sidebar-primary text-white rounded-full flex items-center justify-center hover:bg-sidebar-primary/90 transition-colors shadow-lg"
+                      title="Change Profile Picture"
+                    >
+                      <Camera className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-gray-900">{profile.name}</p>
-                    <p className="text-sm text-gray-500">{profile.role}</p>
-                    <button className="text-sm text-blue-600 hover:underline mt-1">Change photo</button>
-                  </div>
-                </div>
-
-                {/* Quick Info */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Building className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Department</p>
-                      <p className="text-sm font-medium text-gray-900">{profile.department}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Joined Date</p>
-                      <p className="text-sm font-medium text-gray-900">{profile.joinedDate}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Last Login</p>
-                      <p className="text-sm font-medium text-gray-900">{profile.lastLogin}</p>
-                    </div>
+                    <p className="text-sm text-gray-600">Click camera icon to change</p>
+                    <p className="text-xs text-gray-500 mt-1">JPG, PNG or GIF (Max 5MB)</p>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Right Column - Editable Profile */}
-          <div className="lg:col-span-2">
+            {/* Account Status Card */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">Edit Profile</h2>
-
-                {/* Profile Form */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-                    <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                      <User className="w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={profile.name}
-                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                        className="bg-transparent text-sm outline-none w-full text-gray-700"
-                      />
-                    </div>
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-sidebar-primary" />
+                  Account Status
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(profile.is_active)}`}>
+                    {getRoleDisplayName(profile.role)}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Status</label>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(profile.is_active)}`}>
+                    {profile.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="w-4 h-4" />
+                    <span>Joined: {profile.joined_date || 'Unknown'}</span>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-                    <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <input
-                        type="email"
-                        value={profile.email}
-                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                        className="bg-transparent text-sm outline-none w-full text-gray-700"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
-                    <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={profile.phone}
-                        onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                        className="bg-transparent text-sm outline-none w-full text-gray-700"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
-                    <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                      <Building className="w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={profile.department}
-                        disabled
-                        className="bg-transparent text-sm outline-none w-full text-gray-700"
-                      />
-                    </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
-                    <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2.5 bg-gray-50">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        value={profile.address}
-                        onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-                        className="bg-transparent text-sm outline-none w-full text-gray-700"
-                      />
-                    </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mt-2">
+                    <Clock className="w-4 h-4" />
+                    <span>Last Login: {profile.last_login || 'Never'}</span>
                   </div>
                 </div>
-
-                {/* Role and Status */}
-                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
-                  <div className="flex items-center justify-between">
+              </div>
+            </div>
+            {/* Security Settings Card */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-sidebar-primary" />
+                  Security Settings
+                </h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Shield className="w-5 h-5 text-blue-600" />
+                      <Mail className="w-4 h-4 text-gray-400" />
                       <div>
-                        <p className="text-sm font-semibold text-blue-600">Role: {profile.role}</p>
-                        <p className="text-xs text-gray-500">You have department-level access</p>
+                        <p className="text-sm font-medium text-gray-900">Email Verification</p>
+                        <p className="text-xs text-gray-500">Verified</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-green-600">Active</span>
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Two-Factor Auth</p>
+                        <p className="text-xs text-gray-500">Disabled</p>
+                      </div>
                     </div>
+                    <button className="text-sm text-sidebar-primary hover:text-sidebar-primary/80">Enable</button>
+                  </div>
+                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Shield className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Login Alerts</p>
+                        <p className="text-xs text-gray-500">Enabled</p>
+                      </div>
+                    </div>
+                    <button className="text-sm text-gray-600 hover:text-gray-700">Configure</button>
                   </div>
                 </div>
-
-                {/* Save Button */}
-                <div className="flex justify-between items-center">
-                  <div>
-                    {error && (
-                      <p className="text-sm text-red-600">{error}</p>
-                    )}
-                  </div>
-                  
-                  <button 
-                    onClick={handleSave}
-                    disabled={loading}
-                    className="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : saved ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        Saved!
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save Profile
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Success Message */}
-                {saved && (
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800">Profile updated successfully!</p>
-                  </div>
-                )}
+                <button className="w-full px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90 transition-colors text-sm font-medium">
+                  Change Password
+                </button>
               </div>
             </div>
           </div>

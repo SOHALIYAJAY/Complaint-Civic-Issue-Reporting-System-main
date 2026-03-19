@@ -4,10 +4,6 @@ import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts'
 import { TrendingUp, TrendingDown, BarChart3, PieChartIcon, Activity, Calendar, Filter, RefreshCw } from 'lucide-react'
 
-interface CategoryComplaintData {
-  [key: string]: number
-}
-
 interface ChartData {
   category: string
   complaints: number
@@ -22,7 +18,8 @@ interface MonthlyData {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1']
 
 export default function CategoryComplaintsChart() {
-  const [data, setData] = useState<CategoryComplaintData>({})
+  // Backend returns: [{ name: string, total_comp: number }, ...]
+  const [data, setData] = useState<Array<{ name: string; total_comp: number }>>([])
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,7 +44,7 @@ export default function CategoryComplaintsChart() {
       
       const result = await response.json()
       console.log('API Response:', result)
-      setData(result)
+      setData(Array.isArray(result) ? result : [])
       setError(null)
     } catch (err: any) {
       console.error('Error fetching category complaints:', err)
@@ -79,11 +76,11 @@ export default function CategoryComplaintsChart() {
 
   // Convert data to chart format
   const getChartData = (): ChartData[] => {
-    return Object.entries(data)
-      .filter(([_, complaints]) => complaints > 0) // Only show categories with complaints
-      .map(([category, complaints]) => ({
-        category: category.replace(/_/g, ' ').toUpperCase(),
-        complaints: complaints
+    return data
+      .filter((item) => (item?.total_comp || 0) > 0)
+      .map((item) => ({
+        category: (item.name || '').replace(/_/g, ' ').toUpperCase(),
+        complaints: item.total_comp || 0,
       }))
       .sort((a, b) => b.complaints - a.complaints)
   }
@@ -107,7 +104,7 @@ export default function CategoryComplaintsChart() {
 
   const chartData = getChartData()
   const lineChartData = getLineChartData()
-  const totalComplaints = Object.values(data).reduce((sum, count) => sum + count, 0)
+  const totalComplaints = data.reduce((sum, item) => sum + (item.total_comp || 0), 0)
 
   console.log('Processed chart data:', chartData)
   console.log('Total complaints:', totalComplaints)

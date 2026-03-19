@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Search, Filter, MoreVertical, Edit, Eye, UserPlus, Shield, AlertCircle, Users, TrendingUp, Activity, RefreshCw, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import StatsCard from '@/components/ui/stats-card'
 
 interface User {
   id: number
@@ -463,53 +464,39 @@ export default function AdminUsersPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{analyticsData.totalUsers}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Total Users"
+          value={analyticsData.totalUsers}
+          icon={<Users className="w-6 h-6" />}
+          borderColor="border-t-[#1e40af]"
+        />
         
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Users</p>
-              <p className="text-2xl font-bold text-green-600">{analyticsData.activeUsers}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Activity className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Active Users"
+          value={analyticsData.activeUsers}
+          icon={<Activity className="w-6 h-6" />}
+          color="text-green-600"
+          bgColor="bg-green-100"
+          borderColor="border-t-[#f59e0b]"
+        />
         
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Inactive Users</p>
-              <p className="text-2xl font-bold text-red-600">{analyticsData.inactiveUsers}</p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Inactive Users"
+          value={analyticsData.inactiveUsers}
+          icon={<AlertCircle className="w-6 h-6" />}
+          color="text-blue-600"
+          bgColor="bg-blue-100"
+          borderColor="border-t-[#3b82f6]"
+        />
         
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Complaints</p>
-              <p className="text-2xl font-bold text-orange-600">{analyticsData.totalComplaints}</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Total Complaints"
+          value={analyticsData.totalComplaints}
+          icon={<TrendingUp className="w-6 h-6" />}
+          color="text-green-600"
+          bgColor="bg-green-100"
+          borderColor="border-t-[#16a34a]"
+        />
       </div>
 
       {/* Charts Section */}
