@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Menu, X, Search, LogOut, Settings, LayoutDashboard, FileText, Users, Building2, UserCog, Tag } from 'lucide-react'
+import { Menu, X, Search, LogOut, Settings, LayoutDashboard, FileText, Users, Building2, UserCog, Tag, Home } from 'lucide-react'
+import RequireAuth from '@/components/auth/RequireAuth'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -11,6 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
 
   const menuItems = [
+    { icon: Home, label: 'Home', path: '/', group: 'Navigation' },
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', group: 'Main' },
     { icon: FileText, label: 'All Complaints', path: '/admin/complaints', group: 'Management' },
     // 'Assign Complaints' removed to hide assignment page from admin UI
@@ -33,34 +35,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [] as any[])
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC]">
+    <RequireAuth role="Admin-User">
+      <div className="flex h-screen bg-[#F8FAFC]">
       {/* SIDEBAR */}
       <div
         className={`${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } bg-white border-r border-[#E2E8F0] transition-all duration-300 flex flex-col overflow-y-auto shadow-sm`}
+          sidebarOpen ? 'w-52' : 'w-16'
+        } bg-primary text-primary-foreground transition-all duration-300 flex flex-col overflow-y-auto shadow-sm`}
       >
         {/* Logo */}
-        <div className="p-6 border-b border-[#E2E8F0]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#2563EB] rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-lg">G</span>
+        <div className="p-4 border-b border-primary-foreground/20">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-white font-bold text-sm">G</span>
             </div>
             {sidebarOpen && (
               <div>
-                <h1 className="text-lg font-bold text-[#1E293B]">CivicTrack</h1>
-                <p className="text-xs text-[#64748B]">Admin Portal</p>
+                <h1 className="text-sm font-bold text-primary-foreground">CivicTrack</h1>
+                <p className="text-xs text-primary-foreground/70">Admin Portal</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Menu */}
-        <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+        <nav className="flex-1 p-2 space-y-3 overflow-y-auto">
           {groupedMenuItems.map((group) => (
             <div key={group.name}>
               {sidebarOpen && (
-                <p className="px-4 py-2 text-xs font-semibold text-[#64748B] uppercase tracking-wider">{group.name}</p>
+                <p className="px-3 py-1 text-xs font-semibold text-primary-foreground/70 uppercase tracking-wider">{group.name}</p>
               )}
               <div className="space-y-1">
                 {group.items.map((item: any) => {
@@ -70,14 +73,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <button
                       key={item.path}
                       onClick={() => router.push(item.path)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all relative ${
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all relative text-xs ${
                         isActive
-                          ? 'bg-[#DBEAFE] text-[#2563EB] font-semibold border-l-4 border-[#2563EB]'
-                          : 'text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B]'
+                          ? 'bg-primary-foreground/20 text-primary-foreground font-semibold'
+                          : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground'
                       }`}
                     >
-                      <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-[#2563EB]' : 'text-[#64748B]'}`} />
-                      {sidebarOpen && <span className="text-sm">{item.label}</span>}
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-primary-foreground' : 'text-primary-foreground/70'}`} />
+                      {sidebarOpen && <span className="text-xs">{item.label}</span>}
                     </button>
                   )
                 })}
@@ -87,10 +90,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-[#E2E8F0]">
+        <div className="p-3 border-t border-primary-foreground/20">
           <button 
             onClick={() => router.push('/admin/logout')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-all font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-400/20 transition-all font-medium"
           >
             <LogOut className="w-5 h-5" />
             {sidebarOpen && <span className="text-sm">Logout</span>}
@@ -149,6 +152,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
-    </div>
+      </div>
+    </RequireAuth>
   )
 }

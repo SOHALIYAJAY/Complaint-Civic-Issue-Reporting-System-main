@@ -187,7 +187,7 @@ useEffect(() => {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">{statusConfig[complaint.status].icon}</span>
+                      <span className="text-2xl">{statusConfig[complaint.status]?.icon || '⚪'}</span>
                       <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
                         {complaint.title}
                       </h3>
@@ -196,11 +196,11 @@ useEffect(() => {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Badge className={`${statusConfig[complaint.status].color} border`}>
-                      {statusConfig[complaint.status].label}
+                    <Badge className={`${statusConfig[complaint.status]?.color || 'bg-gray-50 text-gray-700 border-gray-200'} border`}>
+                      {statusConfig[complaint.status]?.label || 'Unknown'}
                     </Badge>
-                    <Badge className={priorityConfig[complaint.priority_level].color}>
-                      {priorityConfig[complaint.priority_level].label}
+                    <Badge className={priorityConfig[complaint.priority_level]?.color || 'bg-gray-100 text-gray-800'}>
+                      {priorityConfig[complaint.priority_level]?.label || 'Unknown'}
                     </Badge>
                   </div>
                 </div>

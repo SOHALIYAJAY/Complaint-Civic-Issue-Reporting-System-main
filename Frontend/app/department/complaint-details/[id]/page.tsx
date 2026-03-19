@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   ArrowLeft, 
@@ -17,7 +17,8 @@ import {
   Calendar,
   Tag,
   Building,
-  Map
+  Map,
+  RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -47,26 +48,80 @@ const priorityColors = {
   'Low': 'bg-green-500'
 }
 
-export default function ComplaintDetailsPage({ params }: { params: { id: string } }) {
+export default function ComplaintDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [complaint, setComplaint] = useState<ComplaintDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  
+  // Unwrap the params Promise
+  const { id } = use(params)
+  
+  // Validate ID
+  if (!id || isNaN(Number(id))) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Invalid Complaint ID</h2>
+          <p className="text-gray-600 mb-6">The complaint ID provided is not valid.</p>
+          <Link 
+            href="/department/assigned"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Complaints
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   useEffect(() => {
     fetchComplaintDetails()
-  }, [params.id])
+  }, [id])
 
   const fetchComplaintDetails = async () => {
     try {
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
-      const response = await fetch(`${API_BASE}/api/complaintindetails/${params.id}/`)
+      console.log('Fetching complaint details for ID:', id)
+      console.log('API URL:', `${API_BASE}/api/complaintindetails/${id}/`)
+      
+      // Get authentication token
+      const token = localStorage.getItem('access_token') || localStorage.getItem('adminToken')
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      
+      if (token && token !== 'undefined' && token !== 'null') {
+        headers['Authorization'] = `Bearer ${token}`
+        console.log('Using authentication token')
+      } else {
+        console.log('No authentication token found')
+      }
+      
+      const response = await fetch(`${API_BASE}/api/complaintindetails/${id}/`, {
+        headers
+      })
+      
+      console.log('Response status:', response.status)
+      console.log('Response ok:', response.ok)
       
       if (!response.ok) {
-        throw new Error('Failed to fetch complaint details')
+        const errorText = await response.text()
+        console.error('Error response:', errorText)
+        
+        // Check if it's a serialization error (common with FileField issues)
+        if (errorText.includes('has no file associated with it')) {
+          throw new Error('Server error: File serialization issue. Please contact administrator.')
+        }
+        
+        throw new Error(`Failed to fetch complaint details: ${response.status} ${response.statusText}`)
       }
       
       const data = await response.json()
+      console.log('Response data:', data)
       
       if (data.error) {
         throw new Error(data.error)
@@ -76,7 +131,7 @@ export default function ComplaintDetailsPage({ params }: { params: { id: string 
         comp_name: data.comp_name,
         filed_on: data.filed_on,
         description: data.description,
-        upload_image: data.upload_image,
+        upload_image: data.upload_image || data.image_video || null,
         status: data.status,
         priority: data.priority,
         location_address: data.location_address,
@@ -87,7 +142,9 @@ export default function ComplaintDetailsPage({ params }: { params: { id: string 
       
     } catch (error) {
       console.error('Error fetching complaint details:', error)
-      setError('Failed to load complaint details')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      console.error('Detailed error:', errorMessage)
+      setError(`Failed to load complaint details: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -107,17 +164,26 @@ export default function ComplaintDetailsPage({ params }: { params: { id: string 
   if (error || !complaint) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
-          <p className="text-gray-600 mb-4">{error || 'Complaint not found'}</p>
-          <Link 
-            href="/department/assigned"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Complaints
-          </Link>
+          <p className="text-gray-600 mb-6">{error || 'Complaint not found'}</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={fetchComplaintDetails}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+            <Link 
+              href="/department/assigned"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Complaints
+            </Link>
+          </div>
         </div>
       </div>
     )

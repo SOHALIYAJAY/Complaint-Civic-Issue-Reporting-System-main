@@ -18,10 +18,8 @@ interface Complaint {
   status: 'Pending' | 'in-progress' | 'resolved'
   priority_level: 'Low' | 'Medium' | 'High'
   image_video?: string
-  slaCompliance?: number
   officerRemarks?: string
   timeline?: Array<{ step: string; date: string; status: 'completed' | 'pending' }>
-  estimatedResolution?: string
 }
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -109,20 +107,20 @@ export default function ComplaintsList({
                       <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">{complaint.title}</h3>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${priorityColors[complaint.priority_level]}`}>
-                        {complaint.priority_level.charAt(0).toUpperCase() + complaint.priority_level.slice(1)}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${priorityColors[complaint.priority_level] || 'bg-gray-100 text-gray-800'}`}>
+                        {complaint.priority_level ? complaint.priority_level.charAt(0).toUpperCase() + complaint.priority_level.slice(1) : 'Unknown'}
                       </span>
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[complaint.status].bg} ${statusColors[complaint.status].text} ${statusColors[complaint.status].border}`}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[complaint.status]?.bg || 'bg-gray-500/10'} ${statusColors[complaint.status]?.text || 'text-gray-700'} ${statusColors[complaint.status]?.border || 'border-gray-500/20'}`}
                       >
-                        {complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)}
+                        {complaint.status ? complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1) : 'Unknown'}
                       </span>
                     </div>
                   </div>
 
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{complaint.Description}</p>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-muted-foreground truncate">{complaint.location_address}</span>
@@ -130,14 +128,6 @@ export default function ComplaintsList({
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-muted-foreground">{new Date(complaint.current_time).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium text-foreground">SLA:</span>
-                      <span className="text-green-600 font-semibold">{complaint.slaCompliance}%</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium text-foreground">Resolution:</span>
-                      <span className="text-primary font-semibold">{complaint.estimatedResolution}</span>
                     </div>
                   </div>
                 </div>

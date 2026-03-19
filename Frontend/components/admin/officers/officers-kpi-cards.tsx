@@ -8,15 +8,14 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
+import { getCardColors } from "@/lib/card-colors"
 
 interface KpiCard {
   label: string
   value: string
   trendUp: boolean
   icon: React.ReactNode
-  borderColor: string
-  iconBg: string
-  iconColor: string
+  colorType: "users" | "officers" | "total"
   suffix?: string
 }
 
@@ -75,27 +74,21 @@ export default function OfficersKpiCards() {
             value: data.total_officers.toString(),
             trendUp: true,
             icon: <Users className="w-5 h-5" />,
-            borderColor: "border-t-[#1e40af]",
-            iconBg: "bg-blue-50",
-            iconColor: "text-[#1e40af]",
+            colorType: "users",
           },
           {
             label: "Active Officers",
             value: data.active_officers.toString(),
             trendUp: true,
             icon: <UserCheck className="w-5 h-5" />,
-            borderColor: "border-t-[#16a34a]",
-            iconBg: "bg-green-50",
-            iconColor: "text-[#16a34a]",
+            colorType: "officers",
           },
           {
             label: "Total Assigned",
             value: data.total_assigned.toString(),
             trendUp: true,
             icon: <FileText className="w-5 h-5" />,
-            borderColor: "border-t-[#3b82f6]",
-            iconBg: "bg-sky-50",
-            iconColor: "text-[#3b82f6]",
+            colorType: "total",
           },
 
         ])
@@ -112,48 +105,52 @@ export default function OfficersKpiCards() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {kpiData.map((card, i) => (
-        <div
-          key={i}
-          className={`bg-white rounded-lg border border-[#e2e8f0] border-t-4 ${card.borderColor} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className={`${card.iconBg} ${card.iconColor} p-2 rounded-lg`}>
-              {card.icon}
-            </div>
-            <div
-              className={`flex items-center gap-1 text-xs font-semibold ${
-                card.label === "Overloaded"
+      {kpiData.map((card, i) => {
+        const colors = getCardColors(card.colorType)
+        return (
+          <div
+            key={i}
+            className={`glass-effect rounded-lg border border-[#e2e8f0] border-t-4 ${colors.borderColor} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className={`${colors.iconBg} ${colors.iconColor} p-2 rounded-lg`}>
+                {card.icon}
+              </div>
+              <div
+                className={`flex items-center gap-1 text-xs font-semibold ${
+                  card.label === "Overloaded"
+                    ? card.trendUp
+                      ? "text-[#dc2626]"
+                      : "text-[#16a34a]"
+                    : card.label === "Avg Resolution"
+                    ? card.trendUp
+                      ? "text-[#dc2626]"
+                      : "text-[#16a34a]"
+                    : card.trendUp
+                    ? "text-[#16a34a]"
+                    : "text-[#dc2626]"
+                }`}
+              >
+                {(card.label === "Overloaded" || card.label === "Avg Resolution")
                   ? card.trendUp
-                    ? "text-[#dc2626]"
-                    : "text-[#16a34a]"
-                  : card.label === "Avg Resolution"
-                  ? card.trendUp
-                    ? "text-[#dc2626]"
-                    : "text-[#16a34a]"
+                    ? <TrendingUp className="w-3.5 h-3.5" />
+                    : <TrendingDown className="w-3.5 h-3.5" />
                   : card.trendUp
-                  ? "text-[#16a34a]"
-                  : "text-[#dc2626]"
-              }`}
-            >
-              {(card.label === "Overloaded" || card.label === "Avg Resolution")
-                ? card.trendUp
                   ? <TrendingUp className="w-3.5 h-3.5" />
                   : <TrendingDown className="w-3.5 h-3.5" />
-                : card.trendUp
-                ? <TrendingUp className="w-3.5 h-3.5" />
-                : <TrendingDown className="w-3.5 h-3.5" />
-              }
+                }
+              </div>
             </div>
+            <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
+              {card.label}
+            </p>
+            <p className="text-2xl font-bold text-slate-800">
+              <AnimatedValue target={card.value} suffix={card.suffix} />
+            </p>
+            <div className={`h-1 ${colors.progressLine} mt-3 rounded-full opacity-80`}></div>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
-            {card.label}
-          </p>
-          <p className="text-2xl font-bold text-slate-800">
-            <AnimatedValue target={card.value} suffix={card.suffix} />
-          </p>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

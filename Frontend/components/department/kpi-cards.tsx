@@ -11,6 +11,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
+import { getCardColors } from "@/lib/card-colors"
 
 interface KpiCard {
   label: string
@@ -18,9 +19,7 @@ interface KpiCard {
   trend: string
   trendUp: boolean
   icon: React.ReactNode
-  borderColor: string
-  iconBg: string
-  iconColor: string
+  colorType: "total" | "pending" | "inProgress" | "resolved" | "escalated" | "sla"
 }
 
 function AnimatedValue({ target, suffix }: { target: string; suffix?: string }) {
@@ -67,9 +66,7 @@ const kpiData: KpiCard[] = [
     trend: "+8.2%",
     trendUp: true,
     icon: <FileText className="w-5 h-5" />,
-    borderColor: "border-t-[#1e40af]",
-    iconBg: "bg-blue-50",
-    iconColor: "text-[#1e40af]",
+    colorType: "total",
   },
   {
     label: "Pending",
@@ -77,9 +74,7 @@ const kpiData: KpiCard[] = [
     trend: "-3.1%",
     trendUp: false,
     icon: <Clock className="w-5 h-5" />,
-    borderColor: "border-t-[#f59e0b]",
-    iconBg: "bg-amber-50",
-    iconColor: "text-[#f59e0b]",
+    colorType: "pending",
   },
   {
     label: "In Progress",
@@ -87,9 +82,7 @@ const kpiData: KpiCard[] = [
     trend: "+5.4%",
     trendUp: true,
     icon: <Loader2 className="w-5 h-5" />,
-    borderColor: "border-t-[#3b82f6]",
-    iconBg: "bg-sky-50",
-    iconColor: "text-[#3b82f6]",
+    colorType: "inProgress",
   },
   {
     label: "Resolved",
@@ -97,9 +90,7 @@ const kpiData: KpiCard[] = [
     trend: "+12.7%",
     trendUp: true,
     icon: <CheckCircle2 className="w-5 h-5" />,
-    borderColor: "border-t-[#16a34a]",
-    iconBg: "bg-green-50",
-    iconColor: "text-[#16a34a]",
+    colorType: "resolved",
   },
   {
     label: "Escalated",
@@ -107,9 +98,7 @@ const kpiData: KpiCard[] = [
     trend: "+2.1%",
     trendUp: true,
     icon: <AlertTriangle className="w-5 h-5" />,
-    borderColor: "border-t-[#dc2626]",
-    iconBg: "bg-red-50",
-    iconColor: "text-[#dc2626]",
+    colorType: "escalated",
   },
   {
     label: "SLA Compliance",
@@ -117,48 +106,50 @@ const kpiData: KpiCard[] = [
     trend: "+1.8%",
     trendUp: true,
     icon: <ShieldCheck className="w-5 h-5" />,
-    borderColor: "border-t-[#7c3aed]",
-    iconBg: "bg-violet-50",
-    iconColor: "text-[#7c3aed]",
+    colorType: "sla",
   },
 ]
 
 export default function DeptKpiCards() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-      {kpiData.map((card, i) => (
-        <div
-          key={i}
-          className={`bg-white rounded-lg border border-[#e2e8f0] border-t-4 ${card.borderColor} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className={`${card.iconBg} ${card.iconColor} p-2 rounded-lg`}>
-              {card.icon}
+      {kpiData.map((card, i) => {
+        const colors = getCardColors(card.colorType)
+        return (
+          <div
+            key={i}
+            className={`glass-effect rounded-lg border border-[#e2e8f0] border-t-4 ${colors.borderColor} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className={`${colors.iconBg} ${colors.iconColor} p-2 rounded-lg`}>
+                {card.icon}
+              </div>
+              <div
+                className={`flex items-center gap-1 text-xs font-semibold ${
+                  card.trendUp ? "text-[#16a34a]" : "text-[#dc2626]"
+                }`}
+              >
+                {card.trendUp ? (
+                  <TrendingUp className="w-3.5 h-3.5" />
+                ) : (
+                  <TrendingDown className="w-3.5 h-3.5" />
+                )}
+                {card.trend}
+              </div>
             </div>
-            <div
-              className={`flex items-center gap-1 text-xs font-semibold ${
-                card.trendUp ? "text-[#16a34a]" : "text-[#dc2626]"
-              }`}
-            >
-              {card.trendUp ? (
-                <TrendingUp className="w-3.5 h-3.5" />
-              ) : (
-                <TrendingDown className="w-3.5 h-3.5" />
-              )}
-              {card.trend}
-            </div>
+            <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
+              {card.label}
+            </p>
+            <p className="text-2xl font-bold text-slate-800">
+              <AnimatedValue
+                target={card.value}
+                suffix={card.label === "SLA Compliance" ? "%" : undefined}
+              />
+            </p>
+            <div className={`h-1 ${colors.progressLine} mt-3 rounded-full opacity-80`}></div>
           </div>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
-            {card.label}
-          </p>
-          <p className="text-2xl font-bold text-slate-800">
-            <AnimatedValue
-              target={card.value}
-              suffix={card.label === "SLA Compliance" ? "%" : undefined}
-            />
-          </p>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

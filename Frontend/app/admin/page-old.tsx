@@ -144,28 +144,11 @@ export default function AdminDashboard() {
           
           const res = await fetch(`${API_BASE}/api/getcomplaint/`, { headers })
           
-          if (!res.ok) {
-            if (res.status === 401) {
-              console.warn('Authentication failed for recent complaints, using fallback')
-              setRecentComplaints([
-                { id: 'CMP-001', title: 'Pothole on Main Street', status: 'Pending', priority_level: 'High', location_District: 'Ahmedabad' },
-                { id: 'CMP-002', title: 'Water Leakage', status: 'in-progress', priority_level: 'Medium', location_District: 'Surat' },
-                { id: 'CMP-003', title: 'Street Light Issue', status: 'resolved', priority_level: 'Low', location_District: 'Vadodara' },
-              ])
-              return
-            }
-            throw new Error('Failed to fetch recent complaints')
-          }
           
           const data = await res.json()
           setRecentComplaints(Array.isArray(data) ? data : [])
         } catch (err) {
           console.error('Failed to fetch recent complaints', err)
-          setRecentComplaints([
-            { id: 'CMP-001', title: 'Pothole on Main Street', status: 'Pending', priority_level: 'High', location_District: 'Ahmedabad' },
-            { id: 'CMP-002', title: 'Water Leakage', status: 'in-progress', priority_level: 'Medium', location_District: 'Surat' },
-            { id: 'CMP-003', title: 'Street Light Issue', status: 'resolved', priority_level: 'Low', location_District: 'Vadodara' },
-          ])
         }
       }
 
@@ -388,20 +371,7 @@ export default function AdminDashboard() {
         
         const res = await fetch(`${API_BASE}/api/getcomplaint/`, { headers })
         
-        if (!res.ok) {
-          if (res.status === 401) {
-            console.warn('Authentication failed for recent complaints, using fallback')
-            // Set fallback data
-            setRecentComplaints([
-              { id: 'CMP-001', title: 'Pothole on Main Street', status: 'Pending', priority_level: 'High', location_District: 'Ahmedabad' },
-              { id: 'CMP-002', title: 'Water Leakage', status: 'in-progress', priority_level: 'Medium', location_District: 'Surat' },
-              { id: 'CMP-003', title: 'Street Light Issue', status: 'resolved', priority_level: 'Low', location_District: 'Vadodara' },
-            ])
-            return
-          }
-          throw new Error('Failed to fetch recent complaints')
-        }
-        
+       
         const data = await res.json()
         console.log('Recent complaints data:', data)
         setRecentComplaints(Array.isArray(data) ? data : [])

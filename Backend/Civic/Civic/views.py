@@ -16,6 +16,10 @@ from departments.serializers import deptSerializer, OfficerSerializer
 from Categories.serializers import ComplaintCategorySerializer
 from complaints.serializers import ComplaintSerializer,ComplaintAssignmentSerializer
 from complaints.models import ComplaintAssignment
+from django.db.models import Count
+from django.db.models.functions import ExtractMonth, ExtractYear
+import calendar
+from datetime import datetime
 
 
 class getcomplaint(ListAPIView):
@@ -47,7 +51,7 @@ def complaintsinfo(request):
     total_comp = Complaint.objects.filter(user=request.user).count()
     resolved_comp = Complaint.objects.filter(status='resolved' , user=request.user).count()
     pending_comp = Complaint.objects.filter(status='Pending' , user=request.user).count()
-    inprogress_comp = Complaint.objects.filter(status='in-progress' , user=request.user).count()
+    inprogress_comp = Complaint.objects.filter(status='iin-progress' , user=request.user).count()
     
     return Response({
         'total_comp': total_comp,
@@ -57,6 +61,33 @@ def complaintsinfo(request):
     })
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recent_complaints_admin(request):
+    """
+    Get recent complaints for admin dashboard (maximum 6)
+    """
+    try:
+        # Get 6 most recent complaints ordered by current_time (most recent first)
+        recent_complaints = Complaint.objects.all().order_by('-current_time')[:6]
+        
+        # Serialize the complaints
+        serializer = ComplaintSerializer(recent_complaints, many=True)
+        
+        return Response({
+            'success': True,
+            'data': serializer.data,
+            'count': len(serializer.data)
+        })
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to fetch recent complaints'
+        }, status=500)
+
+
 class compinfo(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -64,12 +95,14 @@ class compinfo(APIView):
         total_comp = Complaint.objects.filter(user=self.request.user).count()
         resolved_comp = Complaint.objects.filter(status='resolved', user=self.request.user).count()
         pending_comp = Complaint.objects.filter(status='Pending',user=self.request.user).count()
+        In_progress_comp = Complaint.objects.filter(status='iin-progress',user=self.request.user).count()
         total_categories = Category.objects.all().count()
         return Response({
             'total_complaints': total_comp,
             'Resolved_complaints': resolved_comp,
             'Pending_complaints': pending_comp,
             'SLA_complaince': (resolved_comp / total_comp * 100) if total_comp > 0 else 0,
+            'in_progress_complaints': In_progress_comp,
             'total_categories': total_categories
         })
 
@@ -126,7 +159,7 @@ class ComplaintStatusStats(APIView):
             # Count complaints by status
             status_counts = {
                 'open': complaints.filter(status='Pending',user=self.request.user).count(),
-                'in_progress': complaints.filter(status='in-progress',user=self.request.user).count(),
+                'in_progress': complaints.filter(status='iin-progress',user=self.request.user).count(),
                 'resolved': complaints.filter(status='resolved',user=self.request.user).count(),
                 'pending': complaints.filter(status='Pending',user=self.request.user).count()
             }
@@ -186,7 +219,7 @@ class DepartmentDashboardStats(APIView):
             # Calculate statistics
             total = complaints.count()
             pending = complaints.filter(status='Pending').count()
-            in_progress = complaints.filter(status='in-progress').count()
+            in_progress = complaints.filter(status='iin-progress').count()
             resolved = complaints.filter(status='resolved').count()
             
             # Calculate performance metrics
@@ -306,7 +339,7 @@ class officerprofile(APIView):
             resolved_comp = Complaint.objects.filter(officer_id=officer_id, status='resolved').count()
             total_comp = Complaint.objects.filter(officer_id=officer_id).count()
             pending_comp = Complaint.objects.filter(officer_id=officer_id, status='Pending').count()
-            in_progress_comp = Complaint.objects.filter(officer_id=officer_id, status='in-progress').count()
+            in_progress_comp = Complaint.objects.filter(officer_id=officer_id, status='iin-progress').count()
 
             assigned_complaints = Complaint.objects.filter(officer_id=officer_id)
             complaints_serializer = ComplaintSerializer(assigned_complaints, many=True)
@@ -352,7 +385,7 @@ class adminallcomplaintcart(APIView):
         total_comp = Complaint.objects.all().count()
         Pending_comp = Complaint.objects.filter(status='Pending').count()
         resolved_comp = Complaint.objects.filter(status='resolved').count()
-        inprogress_comp = Complaint.objects.filter(status='in-progress').count()
+        inprogress_comp = Complaint.objects.filter(status='iin-progress').count()
         sla_compliance = (resolved_comp / total_comp * 100) if total_comp > 0 else 0
 
         return Response({
@@ -472,6 +505,141 @@ class adminstats(APIView):
             'total_categories': Category.objects.all().count(),
             'total_officers': Officer.objects.all().count(),
         })
+
+
+class admindashboardcard(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get all complaints statistics
+            total_complaints = Complaint.objects.all().count()
+            resolved_complaints = Complaint.objects.filter(status='resolved').count()
+            pending_complaints = Complaint.objects.filter(status='Pending').count()
+            inprogress_complaints = Complaint.objects.filter(status='iin-progress').count()
+            
+            return Response({
+                'total_complaints': total_complaints,
+                'resolved_complaints': resolved_complaints,
+                'pending_complaints': pending_complaints,
+                'inprogress_complaints': inprogress_complaints,
+                'total_comp': total_complaints,
+                'resolved_comp': resolved_complaints,
+                'Pending_comp': pending_complaints,
+                'inprogress_comp': inprogress_complaints
+            })
+        except Exception as e:
+            return Response({
+                'error': str(e),
+                'message': 'Failed to fetch dashboard statistics'
+            }, status=500)
+
+
+class UserRoleDistribution(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get user role distribution using correct role names from CustomUser model
+            regular_users = CustomUser.objects.filter(User_Role='Civic-User').count()
+            officers = CustomUser.objects.filter(User_Role='Department-User').count()
+            admins = CustomUser.objects.filter(User_Role='Admin-User').count()
+            
+            return Response({
+                'regular_users': regular_users,
+                'officers': officers,
+                'admins': admins
+            })
+        except Exception as e:
+            return Response({
+                'error': str(e),
+                'message': 'Failed to fetch user role distribution'
+            }, status=500)
+
+
+class ComplaintStatusTrends(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get monthly complaint trends for the last 6 months
+            from django.db.models import Count
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            # Calculate date ranges
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=180)
+            
+            # Get monthly complaint counts
+            monthly_data = []
+            for i in range(6):
+                month_start = start_date + timedelta(days=30*i)
+                month_end = month_start + timedelta(days=30)
+                
+                month_name = month_start.strftime('%b')
+                total_count = Complaint.objects.filter(
+                    created_at__gte=month_start,
+                    created_at__lt=month_end
+                ).count()
+                
+                monthly_data.append({
+                    'month': month_name,
+                    'complaints': total_count
+                })
+            
+            return Response(monthly_data)
+        except Exception as e:
+            return Response({
+                'error': str(e),
+                'message': 'Failed to fetch complaint trends'
+            }, status=500)
+
+
+class CivicUserActivityView(APIView):
+    def get(self, request):
+        try:
+            # Get user from request
+            user = request.user
+            if not user.is_authenticated:
+                return Response({'error': 'Authentication required'}, status=401)
+            
+            # Get user's complaints
+            user_complaints = Complaint.objects.filter(user=user).order_by('-created_at')[:10]
+            
+            # Create activity data from user's complaints
+            activities = []
+            for complaint in user_complaints:
+                activity = {
+                    'id': f'complaint_{complaint.id}',
+                    'type': 'submitted' if complaint.status == 'Pending' else 'updated' if complaint.status == 'iin-progress' else 'resolved',
+                    'title': f'Complaint {complaint.status}',
+                    'description': complaint.title or 'No description available',
+                    'timestamp': complaint.current_time.isoformat(),
+                }
+                activities.append(activity)
+            
+            # Add login activity
+            activities.append({
+                'id': 'login_recent',
+                'type': 'login',
+                'title': 'Login',
+                'description': f'Successfully logged in as {user.username}',
+                'timestamp': timezone.now().isoformat(),
+            })
+            
+            # Sort by timestamp (most recent first)
+            activities.sort(key=lambda x: x['timestamp'], reverse=True)
+            
+            return Response({
+                'data': activities[:10]  # Return only 10 most recent activities
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': str(e),
+                'message': 'Failed to fetch user activity'
+            }, status=500)
 
 class CategoryList(ListAPIView):
     queryset=Category.objects.all()
@@ -602,7 +770,7 @@ class ComplaintStatus(APIView):
                 
             status_counts = {
                 'Pending': Complaint.objects.filter(status='Pending', user=request.user).count(),
-                'In Progress': Complaint.objects.filter(status='in-progress', user=request.user).count(),
+                'In Progress': Complaint.objects.filter(status='iin-progress', user=request.user).count(),
                 'Resolved': Complaint.objects.filter(status='resolved', user=request.user).count(),
                 'Rejected': Complaint.objects.filter(status='rejected', user=request.user).count(),
             }
@@ -674,6 +842,102 @@ class OfficerUpdate(APIView):
                 'error': str(e)
             }, status=500)
 
+class AdminUserStats(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get user statistics
+            total_users = CustomUser.objects.all().count()
+            active_users = CustomUser.objects.filter(is_active=True).count()
+            inactive_users = total_users - active_users
+            
+            # Get role distribution using correct role names
+            civic_users = CustomUser.objects.filter(User_Role='Civic-User').count()
+            department_users = CustomUser.objects.filter(User_Role='Department-User').count()
+            admin_users = CustomUser.objects.filter(User_Role='Admin-User').count()
+            
+            # Get total complaints count
+            total_complaints = Complaint.objects.all().count()
+            
+            return Response({
+                'totalUsers': total_users,
+                'activeUsers': active_users,
+                'inactiveUsers': inactive_users,
+                'totalComplaints': total_complaints,
+                'roleDistribution': [
+                    { 'name': 'Civic User', 'value': civic_users, 'color': '#8b5cf6' },
+                    { 'name': 'Department User', 'value': department_users, 'color': '#10b981' },
+                    { 'name': 'Admin User', 'value': admin_users, 'color': '#ef4444' }
+                ]
+            })
+        except Exception as e:
+            return Response({
+                'error': str(e),
+                'message': 'Failed to fetch user statistics'
+            }, status=500)
+
+
+class ComplaintPriorityDistribution(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get complaint distribution by priority
+            high_priority = Complaint.objects.filter(priority_level='High').count()
+            medium_priority = Complaint.objects.filter(priority_level='Medium').count()
+            low_priority = Complaint.objects.filter(priority_level='Low').count()
+            
+            # Get complaint distribution by status
+            pending_status = Complaint.objects.filter(status='Pending').count()
+            inprogress_status = Complaint.objects.filter(status='iin-progress').count()
+            resolved_status = Complaint.objects.filter(status='resolved').count()
+            
+            # Get monthly complaint trends (last 6 months)
+            from django.db.models import Count
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            end_date = timezone.now()
+            monthly_trends = []
+            
+            for i in range(6):
+                start_date = end_date - timedelta(days=30)
+                month_name = start_date.strftime('%B %Y')
+                
+                month_complaints = Complaint.objects.filter(
+                    current_time__gte=start_date,
+                    current_time__lt=end_date
+                ).count()
+                
+                monthly_trends.append({
+                    'month': month_name,
+                    'complaints': month_complaints
+                })
+                
+                end_date = start_date
+            
+            return Response({
+                'priority_distribution': [
+                    { 'name': 'High Priority', 'value': high_priority, 'color': '#ef4444' },
+                    { 'name': 'Medium Priority', 'value': medium_priority, 'color': '#f59e0b' },
+                    { 'name': 'Low Priority', 'value': low_priority, 'color': '#10b981' }
+                ],
+                'status_distribution': [
+                    { 'name': 'Pending', 'value': pending_status, 'color': '#f59e0b' },
+                    { 'name': 'In Progress', 'value': inprogress_status, 'color': '#3b82f6' },
+                    { 'name': 'Resolved', 'value': resolved_status, 'color': '#10b981' }
+                ],
+                'monthly_trends': monthly_trends
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': str(e),
+                'message': 'Failed to fetch complaint distribution data'
+            }, status=500)
+
+
 class OfficerAnalytics(APIView):
     def get(self, request):
         try:
@@ -690,7 +954,7 @@ class OfficerAnalytics(APIView):
             # Officers with active complaints
             officers_with_complaints = Complaint.objects.filter(
                 officer_id__isnull=False,
-                status__in=['Pending', 'in-progress']
+                status__in=['Pending', 'iin-progress']
             ).values('officer_id').distinct().count()
             
             # Department distribution
@@ -699,7 +963,7 @@ class OfficerAnalytics(APIView):
                 # Get complaints assigned to this officer
                 complaint_count = Complaint.objects.filter(
                     officer_id=officer.officer_id,
-                    status__in=['Pending', 'in-progress']
+                    status__in=['Pending', 'iin-progress']
                 ).count()
                 
                 # Get department from complaints (assuming each officer belongs to a department)
@@ -708,6 +972,7 @@ class OfficerAnalytics(APIView):
                     # Get department from the first complaint's category
                     dept = complaints.first().Category
                     if dept:
+           
                         dept_name = dept.name
                         if dept_name not in department_stats:
                             department_stats[dept_name] = {
@@ -720,15 +985,20 @@ class OfficerAnalytics(APIView):
             # Workload distribution
             workload_data = []
             for officer in Officer.objects.all():
+                # Count all assigned complaints (both active and resolved)
+                total_assigned = Complaint.objects.filter(officer_id=officer.officer_id).count()
+                # Count only active complaints
                 active_complaints = Complaint.objects.filter(
                     officer_id=officer.officer_id,
-                    status__in=['Pending', 'in-progress']
+                    status__in=['Pending', 'iin-progress']
                 ).count()
                 
                 workload_data.append({
                     'officer_id': officer.officer_id,
                     'name': officer.name,
+                    'total_assigned': total_assigned,
                     'active_complaints': active_complaints,
+                    'resolved_complaints': total_assigned - active_complaints,
                     'is_available': officer.is_available
                 })
             
@@ -836,10 +1106,6 @@ class UserDistrictWise(APIView):
 class UserMonthlyRegistrations(APIView):
     def get(self, request):
         try:
-            from django.db.models import Count
-            from django.db.models.functions import ExtractMonth, ExtractYear
-            import calendar
-            from datetime import datetime
             
             # Get current year
             current_year = datetime.now().year

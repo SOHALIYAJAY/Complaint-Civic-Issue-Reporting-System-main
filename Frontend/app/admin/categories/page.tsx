@@ -38,6 +38,17 @@ export default function CategoriesPage() {
     }
   }
 
+  // Get unique departments from categories for filter dropdown
+  const getUniqueDepartments = () => {
+    const departments = new Set<string>()
+    categories.forEach(cat => {
+      if (cat.department && cat.department.trim()) {
+        departments.add(cat.department.trim())
+      }
+    })
+    return Array.from(departments).sort()
+  }
+
   useEffect(() => { fetchCategories() }, [])
 
   const handleRefresh = async () => {
@@ -235,10 +246,9 @@ export default function CategoriesPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Departments</option>
-            <option value="Water Authority">Water Authority</option>
-            <option value="Public Works">Public Works</option>
-            <option value="Electricity Board">Electricity Board</option>
-            <option value="Municipal Corp">Municipal Corp</option>
+            {getUniqueDepartments().map(dept => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
           </select>
           <button
             onClick={() => toggleSort('complaints')}
@@ -388,10 +398,9 @@ export default function CategoriesPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="Unassigned">Unassigned</option>
-                  <option value="Water Authority">Water Authority</option>
-                  <option value="Public Works">Public Works</option>
-                  <option value="Electricity Board">Electricity Board</option>
-                  <option value="Municipal Corp">Municipal Corp</option>
+                  {getUniqueDepartments().map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
                 </select>
               </div>
             </div>

@@ -71,54 +71,18 @@ export const getDashboardKPIs = async (): Promise<DashboardKPI[]> => {
     return kpis
   } catch (error: any) {
     console.error('Error fetching dashboard KPIs:', error)
-    
-    // Return fallback data on authentication error
+
+    // On auth or network error, return an empty KPI list instead of hard-coded demo data
     if (error.response?.status === 401) {
-      console.warn('Using fallback KPI data due to authentication')
-      return [
-        { 
-          title: 'Total Complaints', 
-          value: '156', 
-          trend: '+12%', 
-          trendUp: true,
-          badge: 'All Time',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-500',
-          textColor: 'text-blue-700'
-        },
-        { 
-          title: 'Resolved Complaints', 
-          value: '89', 
-          trend: '+8%', 
-          trendUp: true,
-          badge: 'Completed',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-500',
-          textColor: 'text-green-700'
-        },
-        { 
-          title: 'Pending Complaints', 
-          value: '45', 
-          trend: '-5%', 
-          trendUp: false,
-          badge: 'Action Needed',
-          bgColor: 'bg-orange-50',
-          borderColor: 'border-orange-500',
-          textColor: 'text-orange-700'
-        },
-        { 
-          title: 'In Progress', 
-          value: '22', 
-          trend: '+2%', 
-          trendUp: true,
-          badge: 'Working',
-          bgColor: 'bg-purple-50',
-          borderColor: 'border-purple-500',
-          textColor: 'text-purple-700'
-        }
-      ]
+      console.warn('Unauthorized while fetching dashboard KPIs, returning empty KPI list')
+      return []
     }
-    
+
+    if (error.code === 'ECONNABORTED' || error.message?.includes('Network Error')) {
+      console.warn('Network error while fetching dashboard KPIs, returning empty KPI list')
+      return []
+    }
+
     throw error
   }
 }

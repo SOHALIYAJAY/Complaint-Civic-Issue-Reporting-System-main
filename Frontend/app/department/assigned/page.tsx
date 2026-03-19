@@ -19,8 +19,8 @@ export default function AssignedComplaintsPage() {
   }
 
   const handleViewDetails = (complaint: Complaint) => {
-    // This is now handled by the ViewDetailsButton component directly
-    console.log('View details for complaint:', complaint.id)
+    console.log('Viewing details for complaint:', complaint.id)
+    // Navigation is handled by ViewDetailsButton component
   }
 
   return (

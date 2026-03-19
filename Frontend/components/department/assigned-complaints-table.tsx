@@ -8,7 +8,6 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
-  Eye,
   UserPlus,
   RefreshCw,
   ChevronDown,
@@ -89,7 +88,7 @@ export default function AssignedComplaintsTable({
   initialView,
 }: {
   onAssign: (complaint: Complaint) => void
-  onViewDetails: (complaint: Complaint) => void
+  onViewDetails?: (complaint: Complaint) => void
   initialView?: "list" | "category"
 }) {
   const router = useRouter()
@@ -378,9 +377,7 @@ export default function AssignedComplaintsTable({
                           </div>
                         </div>
                           <div className="flex items-center gap-1">
-                          <button onClick={() => onViewDetails(c)} className="p-2 text-[#3b82f6] hover:bg-blue-50 rounded transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          <ViewDetailsButton complaint={loading ? null : c} className="p-2 text-[#3b82f6] hover:bg-blue-50 rounded transition-colors" />
                           {c.is_assignd ? (
                             <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold">Assigned</span>
                           ) : (

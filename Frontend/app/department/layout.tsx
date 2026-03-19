@@ -1,21 +1,24 @@
-"use client"
+ "use client"
 
-import { useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
-import {
-  Menu,
-  X,
-  Search,
-  LogOut,
-  LayoutDashboard,
-  FileText,
-  Users,
-  User,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react"
+ import { useState } from "react"
+ import { usePathname, useRouter } from "next/navigation"
+ import {
+   Menu,
+   X,
+   Search,
+   LogOut,
+   LayoutDashboard,
+   FileText,
+   Users,
+   User,
+   ChevronLeft,
+   ChevronRight,
+   Home,
+ } from "lucide-react"
+ import RequireAuth from '@/components/auth/RequireAuth'
 
 const menuItems = [
+  { icon: Home, label: "Home", path: "/" },
   { icon: LayoutDashboard, label: "Dashboard", path: "/department" },
   { icon: FileText, label: "Assigned Complaints", path: "/department/assigned" },
   { icon: Users, label: "Officers", path: "/department/officers" },
@@ -31,6 +34,7 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
   const router = useRouter()
 
   return (
+    <RequireAuth role="Department-User">
     <div className="flex h-screen bg-[#F8FAFC]">
       {/* Mobile overlay */}
       {mobileOpen && (
@@ -44,28 +48,28 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 lg:static lg:z-auto
-          ${sidebarOpen ? "w-64" : "w-20"}
+          ${sidebarOpen ? "w-52" : "w-1"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-          bg-white border-r border-[#E2E8F0] transition-all duration-300 flex flex-col shadow-sm
+          bg-primary text-primary-foreground transition-all duration-300 flex flex-col shadow-sm
         `}
       >
         {/* Logo area */}
-        <div className="h-16 flex items-center border-b border-[#E2E8F0] px-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 bg-[#2563EB] rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-lg">G</span>
+        <div className="h-16 flex items-center border-b border-primary-foreground/20 px-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-sm">G</span>
             </div>
             {sidebarOpen && (
               <div className="min-w-0">
-                <h1 className="text-sm font-bold text-[#1E293B] truncate">Gujarat CivicTrack</h1>
-                <p className="text-[11px] text-[#64748B] truncate">Department Portal</p>
+                <h1 className="text-sm font-bold text-primary-foreground truncate">CivicTrack</h1>
+                <p className="text-xs text-primary-foreground/70 truncate">Dept Portal</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.path
@@ -77,27 +81,27 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
                   setMobileOpen(false)
                 }}
                 title={!sidebarOpen ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm relative ${
+                className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-all text-xs relative ${
                   isActive
-                    ? "bg-[#DBEAFE] text-[#2563EB] font-semibold before:absolute before:left-0 before:top-1 before:bottom-1 before:w-1 before:bg-[#2563EB] before:rounded-r"
-                    : "text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B]"
+                    ? "bg-primary-foreground/20 text-primary-foreground font-semibold"
+                    : "text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground"
                 }`}
               >
-                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-[#2563EB]' : 'text-[#64748B]'}`} />
-                {sidebarOpen && <span>{item.label}</span>}
+                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-primary-foreground' : 'text-primary-foreground/70'}`} />
+                {sidebarOpen && <span className="text-xs">{item.label}</span>}
               </button>
             )
           })}
         </nav>
 
         {/* Sidebar footer */}
-        <div className="px-3 py-3 border-t border-[#E2E8F0]">
+        <div className="px-2 py-2 border-t border-primary-foreground/20">
           <button
             onClick={() => router.push("/department/logout")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-all font-medium"
+            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-red-400 hover:bg-red-400/20 transition-all font-medium text-xs"
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {sidebarOpen && <span>Logout</span>}
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {sidebarOpen && <span className="text-xs">Logout</span>}
           </button>
         </div>
 
@@ -164,5 +168,6 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
         <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">{children}</main>
       </div>
     </div>
+    </RequireAuth>
   )
 }

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { BarChart3, TrendingUp, Users, FileText, Clock, CheckCircle2, Activity, AlertTriangle, Calendar, Target, Award, RefreshCw, Eye } from "lucide-react"
 import Link from "next/link"
 import api from '@/lib/axios'
-import DepartmentsSection from '@/components/departments-section'
 
 interface DashboardStats {
   total: number
@@ -182,9 +181,8 @@ export default function DepartmentDashboard() {
         </div>
       </div>
 
-      {/* Departments Section */}
-      <DepartmentsSection />
 
+      
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-blue-500 shadow-sm p-5">

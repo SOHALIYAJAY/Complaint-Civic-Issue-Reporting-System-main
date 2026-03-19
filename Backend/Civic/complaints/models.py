@@ -17,7 +17,7 @@ class Complaint(models.Model):
         )
     CHOICE_STATUS=(
         ('Pending','Pending'),
-        ('in-progress','In Progress'),
+        ('iin-progress','In Progress'),
         ('resolved','Resolved')
         )
     

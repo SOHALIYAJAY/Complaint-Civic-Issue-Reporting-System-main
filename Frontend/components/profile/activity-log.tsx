@@ -18,6 +18,50 @@ export default function ActivityLog() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Fallback activities for demo purposes
+  const fallbackActivities: Activity[] = [
+    {
+      id: '1',
+      type: 'submitted',
+      title: 'Complaint Submitted',
+      description: 'Reported pothole on MG Road',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      icon: <FileText className="w-5 h-5" />,
+    },
+    {
+      id: '2',
+      type: 'resolved',
+      title: 'Complaint Resolved',
+      description: 'Water supply issue fixed in Zone 5',
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      icon: <CheckCircle className="w-5 h-5" />,
+    },
+    {
+      id: '3',
+      type: 'updated',
+      title: 'Profile Updated',
+      description: 'Changed mobile number',
+      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      icon: <UserCheck className="w-5 h-5" />,
+    },
+    {
+      id: '4',
+      type: 'login',
+      title: 'Login',
+      description: 'Successfully logged in from Windows',
+      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      icon: <LogIn className="w-5 h-5" />,
+    },
+    {
+      id: '5',
+      type: 'submitted',
+      title: 'Complaint Submitted',
+      description: 'Reported street light malfunction',
+      timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      icon: <FileText className="w-5 h-5" />,
+    },
+  ]
+
   useEffect(() => {
     const fetchActivityData = async () => {
       try {
@@ -25,9 +69,12 @@ export default function ActivityLog() {
         const token = localStorage.getItem('access_token')
         if (!token) {
           console.log('No authentication token found - showing fallback data')
+          setActivities(fallbackActivities)
+          setLoading(false)
           return
         }
 
+        console.log('Fetching user activity data...')
         // Fetch user activity from backend
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/user-activity/`, {
           headers: {
@@ -36,8 +83,12 @@ export default function ActivityLog() {
           }
         })
 
+        console.log('Activity API response status:', response.status)
+        
         if (response.ok) {
           const data = await response.json()
+          console.log('Activity API response data:', data)
+          
           const activityData = data.data || data || []
           
           // Transform backend data to frontend format
@@ -50,57 +101,18 @@ export default function ActivityLog() {
             icon: getActivityIcon(item.type)
           }))
           
+          console.log('Transformed activities:', transformedActivities)
           setActivities(transformedActivities)
         } else {
-          throw new Error('Failed to fetch activity data')
+          const errorText = await response.text()
+          console.error('Activity API error response:', response.status, errorText)
+          throw new Error(`API Error: ${response.status} - ${errorText}`)
         }
       } catch (error) {
         console.error('Error fetching activity data:', error)
         
         // Set fallback data for demo
-        const fallbackActivities: Activity[] = [
-          {
-            id: '1',
-            type: 'submitted',
-            title: 'Complaint Submitted',
-            description: 'Reported pothole on MG Road',
-            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            icon: <FileText className="w-5 h-5" />,
-          },
-          {
-            id: '2',
-            type: 'resolved',
-            title: 'Complaint Resolved',
-            description: 'Water supply issue fixed in Zone 5',
-            timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-            icon: <CheckCircle className="w-5 h-5" />,
-          },
-          {
-            id: '3',
-            type: 'updated',
-            title: 'Profile Updated',
-            description: 'Changed mobile number',
-            timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            icon: <UserCheck className="w-5 h-5" />,
-          },
-          {
-            id: '4',
-            type: 'login',
-            title: 'Login',
-            description: 'Successfully logged in from Windows',
-            timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            icon: <LogIn className="w-5 h-5" />,
-          },
-          {
-            id: '5',
-            type: 'submitted',
-            title: 'Complaint Submitted',
-            description: 'Reported street light malfunction',
-            timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            icon: <FileText className="w-5 h-5" />,
-          },
-        ]
-        
+        console.log('Using fallback activity data')
         setActivities(fallbackActivities)
       } finally {
         setLoading(false)
@@ -169,65 +181,4 @@ export default function ActivityLog() {
       </Card>
     )
   }
-
-  return (
-    <Card className="bg-white border border-slate-200 shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-blue-600" />
-          Recent Activity
-        </h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => window.location.href = '/dashboard'}
-          className="flex items-center gap-2"
-        >
-          <ExternalLink className="w-4 h-4" />
-          View All
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        {activities.length === 0 ? (
-          <div className="text-center py-8 text-slate-600">
-            <Zap className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-            <p>No activity found</p>
-            <p className="text-sm">Your recent activities will appear here</p>
-          </div>
-        ) : (
-          activities.map((activity, index) => (
-            <div key={activity.id} className="flex gap-4">
-              {/* Timeline Connector */}
-              <div className="flex flex-col items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getTypeColor(activity.type)}`}>
-                  {activity.icon}
-                </div>
-                {index !== activities.length - 1 && (
-                  <div className="w-0.5 h-12 bg-slate-300 mt-2"></div>
-                )}
-              </div>
-
-              {/* Activity Content */}
-              <div className="pb-4 flex-1">
-                <h4 className="font-semibold text-slate-900">{activity.title}</h4>
-                <p className="text-sm text-slate-600 mt-1">{activity.description}</p>
-                <p className="text-xs text-slate-500 mt-2">{formatTimestamp(activity.timestamp)}</p>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="mt-6 pt-6 border-t border-slate-300">
-        <Button 
-          variant="outline" 
-          className="w-full"
-          onClick={() => window.location.href = '/dashboard'}
-        >
-          View Full Activity Log
-        </Button>
-      </div>
-    </Card>
-  )
 }

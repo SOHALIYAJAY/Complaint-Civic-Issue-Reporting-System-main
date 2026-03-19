@@ -5,30 +5,30 @@ import Link from 'next/link'
 export default function HeroSection() {
   return (
     <>
-      {/* Full Size Ahmedabad Sabarmati Riverfront Hero */}
+      {/* Full Size Smart Governance Hero */}
       <section className="relative w-full h-screen">
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1567157577867-05ccb1388e66?q=80&w=2070&auto=format&fit=crop')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1559028012-cda4b9a0caa8?q=80&w=2070&auto=format&fit=crop')`,
             backgroundPosition: 'center',
           }}
         >
           {/* Fallback gradient if image doesn't load */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-800/20 to-amber-600/20"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-indigo-800/30 to-amber-600/30"></div>
         </div>
         
         {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70"></div>
         
         {/* Overlay content */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center text-white px-4 max-w-3xl slide-in-up">
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight drop-shadow-lg">
-              Gujarat Civic Complaint Portal
+              Smart Governance for Civic Issues
             </h1>
             <p className="text-xl sm:text-2xl text-white/90 mb-8 drop-shadow-md">
-              Transparent Governance. Citizen Empowerment. Smart Solutions.
+              Report Problems • Track Progress • Get Solutions - Powered by Digital India
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href='/raise-complaint'>

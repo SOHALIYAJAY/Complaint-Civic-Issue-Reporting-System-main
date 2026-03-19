@@ -14,10 +14,7 @@ export default function ComplaintsHeader() {
               Track and monitor your submitted civic issues with real-time updates
             </p>
           </div>
-          <Button className="bg-accent text-accent-foreground hover:bg-yellow-500 gap-2 whitespace-nowrap">
-            <Download className="w-4 h-4" />
-            Download Report
-          </Button>
+          
         </div>
       </div>
     </section>

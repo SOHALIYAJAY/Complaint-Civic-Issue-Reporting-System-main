@@ -5,8 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import GoogleProvider from './GoogleProvider'
-import GoogleLoginBtn from './GoogleLoginBtn'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -94,9 +92,6 @@ export default function Header() {
           <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
             {!isLoggedIn ? (
               <>
-                <GoogleProvider>
-                  <GoogleLoginBtn />
-                </GoogleProvider>
                 <Link href="/login">
                   <Button variant="outline" size="sm">
                     Login
@@ -154,9 +149,6 @@ export default function Header() {
             <div className="flex items-center gap-2 pt-3 border-t border-border mt-2">
               {!isLoggedIn ? (
                 <>
-                  <GoogleProvider>
-                    <GoogleLoginBtn />
-                  </GoogleProvider>
                   <Link href="/login" className="flex-1" onClick={() => setIsMenuOpen(false)}>
                     <Button variant="outline" size="sm" className="w-full">
                       Login

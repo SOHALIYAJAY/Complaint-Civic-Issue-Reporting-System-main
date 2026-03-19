@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { TrendingUp, TrendingDown, BarChart3, PieChartIcon } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts'
+import { TrendingUp, TrendingDown, BarChart3, PieChartIcon, Activity, Calendar, Filter, RefreshCw } from 'lucide-react'
 
 interface CategoryComplaintData {
   [key: string]: number
@@ -13,16 +13,25 @@ interface ChartData {
   complaints: number
 }
 
+interface MonthlyData {
+  month: string
+  complaints: number
+  categories: { [key: string]: number }
+}
+
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1']
 
 export default function CategoryComplaintsChart() {
   const [data, setData] = useState<CategoryComplaintData>({})
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [chartType, setChartType] = useState<'bar' | 'pie'>('bar')
+  const [chartType, setChartType] = useState<'bar' | 'pie' | 'line' | 'area'>('bar')
+  const [timeRange, setTimeRange] = useState<'all' | '6months' | '3months'>('all')
 
   useEffect(() => {
     fetchCategoryComplaints()
+    fetchMonthlyTrends()
   }, [])
 
   const fetchCategoryComplaints = async () => {
@@ -48,6 +57,26 @@ export default function CategoryComplaintsChart() {
     }
   }
 
+  const fetchMonthlyTrends = async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+      
+      // Mock monthly data for now - you can create a real endpoint
+      const mockMonthlyData: MonthlyData[] = [
+        { month: 'Jan', complaints: 45, categories: { 'Roads': 15, 'Water': 12, 'Sanitation': 8, 'Electricity': 10 } },
+        { month: 'Feb', complaints: 52, categories: { 'Roads': 18, 'Water': 14, 'Sanitation': 10, 'Electricity': 10 } },
+        { month: 'Mar', complaints: 48, categories: { 'Roads': 16, 'Water': 13, 'Sanitation': 9, 'Electricity': 10 } },
+        { month: 'Apr', complaints: 61, categories: { 'Roads': 20, 'Water': 16, 'Sanitation': 12, 'Electricity': 13 } },
+        { month: 'May', complaints: 55, categories: { 'Roads': 18, 'Water': 15, 'Sanitation': 11, 'Electricity': 11 } },
+        { month: 'Jun', complaints: 67, categories: { 'Roads': 22, 'Water': 18, 'Sanitation': 14, 'Electricity': 13 } }
+      ]
+      
+      setMonthlyData(mockMonthlyData)
+    } catch (err: any) {
+      console.error('Error fetching monthly trends:', err)
+    }
+  }
+
   // Convert data to chart format
   const getChartData = (): ChartData[] => {
     return Object.entries(data)
@@ -59,7 +88,25 @@ export default function CategoryComplaintsChart() {
       .sort((a, b) => b.complaints - a.complaints)
   }
 
+  // Get top categories for line chart
+  const getTopCategories = (): string[] => {
+    return getChartData().slice(0, 5).map(d => d.category)
+  }
+
+  // Prepare line chart data
+  const getLineChartData = () => {
+    const topCategories = getTopCategories()
+    return monthlyData.map(month => {
+      const dataPoint: any = { month: month.month }
+      topCategories.forEach(cat => {
+        dataPoint[cat] = month.categories[cat] || 0
+      })
+      return dataPoint
+    })
+  }
+
   const chartData = getChartData()
+  const lineChartData = getLineChartData()
   const totalComplaints = Object.values(data).reduce((sum, count) => sum + count, 0)
 
   console.log('Processed chart data:', chartData)
@@ -76,74 +123,255 @@ export default function CategoryComplaintsChart() {
     )
   }
 
-  if (error) {
+  if (error || chartData.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="text-center py-8">
-          <BarChart3 className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-medium">Error loading data</p>
-          <p className="text-gray-500 text-sm mt-2">{error}</p>
-          <button 
-            onClick={fetchCategoryComplaints}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
+          <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">
+            {error ? 'Error loading data' : 'No complaint data available'}
+          </p>
+          <p className="text-gray-500 text-sm mt-2">
+            {error ? error : 'Categories will appear here once complaints are registered'}
+          </p>
+          {error && (
+            <button 
+              onClick={fetchCategoryComplaints}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Complaints by Category</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Total complaints: <span className="font-semibold text-gray-700">{totalComplaints}</span>
-          </p>
+    <div className="space-y-6">
+      {/* Main Category Distribution Chart */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Complaints by Category</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Total complaints: <span className="font-semibold text-gray-700">{totalComplaints}</span>
+            </p>
+          </div>
+          
+          {/* Chart Type Toggle */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setChartType('bar')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  chartType === 'bar' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 inline mr-1" />
+                Bar
+              </button>
+              <button
+                onClick={() => setChartType('pie')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  chartType === 'pie' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                <PieChartIcon className="w-4 h-4 inline mr-1" />
+                Pie
+              </button>
+              <button
+                onClick={() => setChartType('area')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  chartType === 'area' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                <Activity className="w-4 h-4 inline mr-1" />
+                Area
+              </button>
+            </div>
+            
+            <button 
+              onClick={fetchCategoryComplaints}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Refresh data"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-        
-        {/* Chart Type Toggle */}
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setChartType('bar')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              chartType === 'bar' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4 inline mr-1" />
-            Bar
-          </button>
-          <button
-            onClick={() => setChartType('pie')}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              chartType === 'pie' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <PieChartIcon className="w-4 h-4 inline mr-1" />
-            Pie
-          </button>
+
+        {/* Charts */}
+        {chartType === 'bar' ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="category" 
+                angle={-45} 
+                textAnchor="end" 
+                height={100}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px'
+                }}
+              />
+              <Bar 
+                dataKey="complaints" 
+                fill="#3b82f6"
+                radius={[8, 8, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : chartType === 'pie' ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ category, complaints, percent }) => 
+                  `${category}: ${complaints} (${(percent * 100).toFixed(1)}%)`
+                }
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="complaints"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis 
+                dataKey="category" 
+                angle={-45} 
+                textAnchor="end" 
+                height={100}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px'
+                }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="complaints" 
+                stroke="#3b82f6" 
+                fill="#3b82f6" 
+                fillOpacity={0.6}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-blue-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-600 font-medium">Highest Category</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {chartData[0]?.category || 'N/A'}
+                </p>
+              </div>
+              <TrendingUp className="w-5 h-5 text-blue-600" />
+            </div>
+            <p className="text-sm text-blue-700 mt-1">
+              {chartData[0]?.complaints || 0} complaints
+            </p>
+          </div>
+
+          <div className="bg-green-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-600 font-medium">Total Categories</p>
+                <p className="text-lg font-bold text-green-900">{chartData.length}</p>
+              </div>
+              <BarChart3 className="w-5 h-5 text-green-600" />
+            </div>
+            <p className="text-sm text-green-700 mt-1">Active categories</p>
+          </div>
+
+          <div className="bg-purple-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-purple-600 font-medium">Average per Category</p>
+                <p className="text-lg font-bold text-purple-900">
+                  {chartData.length > 0 ? Math.round(totalComplaints / chartData.length) : 0}
+                </p>
+              </div>
+              <TrendingDown className="w-5 h-5 text-purple-600" />
+            </div>
+            <p className="text-sm text-purple-700 mt-1">Complaints average</p>
+          </div>
+
+          <div className="bg-orange-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Lowest Category</p>
+                <p className="text-lg font-bold text-orange-900">
+                  {chartData[chartData.length - 1]?.category || 'N/A'}
+                </p>
+              </div>
+              <Activity className="w-5 h-5 text-orange-600" />
+            </div>
+            <p className="text-sm text-orange-700 mt-1">
+              {chartData[chartData.length - 1]?.complaints || 0} complaints
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Charts */}
-      {chartType === 'bar' ? (
+      {/* Monthly Trends Chart */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Monthly Category Trends</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Top 5 categories performance over time
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as any)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+            >
+              <option value="all">All Time</option>
+              <option value="6months">Last 6 Months</option>
+              <option value="3months">Last 3 Months</option>
+            </select>
+          </div>
+        </div>
+
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+          <LineChart data={lineChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
-              dataKey="category" 
-              angle={-45} 
-              textAnchor="end" 
-              height={100}
-              tick={{ fontSize: 12 }}
-            />
+            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip 
               contentStyle={{ 
@@ -152,87 +380,85 @@ export default function CategoryComplaintsChart() {
                 borderRadius: '8px'
               }}
             />
-            <Bar 
-              dataKey="complaints" 
-              fill="#3b82f6"
-              radius={[8, 8, 0, 0]}
-            />
-          </BarChart>
+            <Legend />
+            {getTopCategories().map((cat, index) => (
+              <Line
+                key={cat}
+                type="monotone"
+                dataKey={cat}
+                stroke={COLORS[index % COLORS.length]}
+                strokeWidth={2}
+                dot={{ fill: COLORS[index % COLORS.length], r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            ))}
+          </LineChart>
         </ResponsiveContainer>
-      ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ category, complaints, percent }) => 
-                `${category}: ${complaints} (${(percent * 100).toFixed(1)}%)`
-              }
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="complaints"
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
-      )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-        <div className="bg-blue-50 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Highest Category</p>
-              <p className="text-lg font-bold text-blue-900">
-                {chartData[0]?.category || 'N/A'}
-              </p>
-            </div>
-            <TrendingUp className="w-5 h-5 text-blue-600" />
-          </div>
-          <p className="text-sm text-blue-700 mt-1">
-            {chartData[0]?.complaints || 0} complaints
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <p className="text-sm text-gray-600">
+            <span className="font-medium">Insight:</span> Track how different categories perform over time to identify seasonal patterns and trends.
           </p>
-        </div>
-
-        <div className="bg-green-50 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 font-medium">Total Categories</p>
-              <p className="text-lg font-bold text-green-900">{chartData.length}</p>
-            </div>
-            <BarChart3 className="w-5 h-5 text-green-600" />
-          </div>
-          <p className="text-sm text-green-700 mt-1">Active categories</p>
-        </div>
-
-        <div className="bg-purple-50 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-purple-600 font-medium">Average per Category</p>
-              <p className="text-lg font-bold text-purple-900">
-                {chartData.length > 0 ? Math.round(totalComplaints / chartData.length) : 0}
-              </p>
-            </div>
-            <TrendingDown className="w-5 h-5 text-purple-600" />
-          </div>
-          <p className="text-sm text-purple-700 mt-1">Complaints average</p>
         </div>
       </div>
 
-      {/* Refresh Button */}
-      <div className="mt-6 text-center">
-        <button 
-          onClick={fetchCategoryComplaints}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-        >
-          Refresh Data
-        </button>
+      {/* Category Performance Table */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Category Performance Details</h2>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 font-semibold text-gray-700">Category</th>
+                <th className="text-center py-3 px-4 font-semibold text-gray-700">Complaints</th>
+                <th className="text-center py-3 px-4 font-semibold text-gray-700">Percentage</th>
+                <th className="text-center py-3 px-4 font-semibold text-gray-700">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chartData.map((cat, index) => {
+                const percentage = ((cat.complaints / totalComplaints) * 100).toFixed(1)
+                const status = cat.complaints > totalComplaints / chartData.length ? 'High' : 'Normal'
+                
+                return (
+                  <tr key={cat.category} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        ></div>
+                        <span className="font-medium text-gray-900">{cat.category}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-center font-semibold">{cat.complaints}</td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-gray-600">{percentage}%</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        status === 'High' 
+                          ? 'bg-red-100 text-red-700' 
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {status}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

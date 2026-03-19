@@ -79,25 +79,25 @@ export default function ComplaintsKPI({ kpi, loading, error, onRefresh }: Compla
     // },
   ]
 
-  // Performance indicators
+  // Performance indicators calculated from actual data
   const performanceIndicators = [
     {
       label: 'Response Rate',
-      value: '94%',
-      color: 'bg-green-500',
-      status: 'Excellent'
+      value: `${((kpi.resolved_comp + kpi.inprogress_comp) / kpi.total_comp * 100).toFixed(1)}%`,
+      color: kpi.resolved_comp / kpi.total_comp > 0.8 ? 'bg-green-500' : 'bg-orange-500',
+      status: kpi.resolved_comp / kpi.total_comp > 0.8 ? 'Excellent' : 'Needs Improvement'
     },
     {
-      label: 'Resolution Time',
-      value: '2.4 days',
-      color: 'bg-blue-500',
-      status: 'Good'
+      label: 'Resolution Rate',
+      value: `${(kpi.resolved_comp / kpi.total_comp * 100).toFixed(1)}%`,
+      color: kpi.resolved_comp / kpi.total_comp > 0.7 ? 'bg-blue-500' : 'bg-orange-500',
+      status: kpi.resolved_comp / kpi.total_comp > 0.7 ? 'Good' : 'Needs Attention'
     },
     {
-      label: 'Customer Satisfaction',
-      value: '4.2/5',
-      color: 'bg-purple-500',
-      status: 'Very Good'
+      label: 'Pending Rate',
+      value: `${(kpi.Pending_comp / kpi.total_comp * 100).toFixed(1)}%`,
+      color: kpi.Pending_comp / kpi.total_comp < 0.3 ? 'bg-green-500' : 'bg-orange-500',
+      status: kpi.Pending_comp / kpi.total_comp < 0.3 ? 'Under Control' : 'High'
     }
   ]
 
@@ -168,8 +168,7 @@ export default function ComplaintsKPI({ kpi, loading, error, onRefresh }: Compla
               </div>
             ))}
           </div>
-
-<br />  </div>
+        </div>
       )}
       
       {/* Error State */}

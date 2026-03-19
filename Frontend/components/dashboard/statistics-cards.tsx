@@ -66,7 +66,9 @@ export default function StatisticsCards() {
               Resolved_complaints: 0,
               Pending_complaints: 0,
               SLA_complaince: 0,
+              in_progress_complaints: 0,
               total_categories: 0
+
             })
             setLoading(false)
             return
@@ -88,6 +90,7 @@ export default function StatisticsCards() {
           Resolved_complaints: 0,
           Pending_complaints: 0,
           SLA_complaince: 0,
+          in_progress_complaints: 0,
           total_categories: 0
         })
       })
@@ -99,7 +102,7 @@ export default function StatisticsCards() {
   const stats: StatCard[] = [
     {
       label: 'Total Complaints',
-      value: (info && (info.total_complaints || info.total_comp)) || 0,
+      value: (info && (info.total_complaints || info.total_comp || info.total_complaints)) || 0,
       icon: <AlertCircle className="w-6 h-6" />,
       bgColor: 'bg-blue-500/10',
       textColor: 'text-blue-600',
@@ -107,7 +110,7 @@ export default function StatisticsCards() {
     },
     {
       label: 'Pending',
-      value: (info && (info.Pending_complaints || info.pending_comp)) || 0,
+      value: (info && (info.Pending_complaints || info.pending_comp || info.Pending_comp)) || 0,
       icon: <Clock className="w-6 h-6" />,
       bgColor: 'bg-amber-500/10',
       textColor: 'text-amber-600',
@@ -115,28 +118,27 @@ export default function StatisticsCards() {
     },
     {
       label: 'Resolved',
-      value: (info && (info.Resolved_complaints || info.resolved_comp)) || 0,
+      value: (info && (info.Resolved_complaints || info.resolved_comp || info.Resolved_comp)) || 0,
       icon: <CheckCircle className="w-6 h-6" />,
       bgColor: 'bg-green-500/10',
       textColor: 'text-green-600',
       borderColor: 'border-green-500/20',
     },
     {
-      label: 'SLA Compliance',
-      value: (info && (info.SLA_complaince || info.sla_comp)) ? parseFloat((info.SLA_complaince || info.sla_comp).toFixed(2)) : 0,
-      icon: <TrendingUp className="w-6 h-6" />,
-      bgColor: 'bg-purple-500/10',
-      textColor: 'text-purple-600',
-      borderColor: 'border-purple-500/20',
-      suffix: '%'
+      label: 'In-Progress',
+      value: (info && (info.in_progress_complaints || info.in_progress_complaints || info.in_progress_complaints)) || 0,
+      icon: <CheckCircle className="w-6 h-6" />,
+      bgColor: 'bg-green-500/10',
+      textColor: 'text-green-600',
+      borderColor: 'border-green-500/20',
     },
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {loading ? (
         // Loading skeleton cards
-        Array.from({ length: 4 }).map((_, index) => (
+        Array.from({ length: 3 }).map((_, index) => (
           <div key={`loading-${index}`} className="glass-effect rounded-lg border border-border p-6">
             <div className="animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>

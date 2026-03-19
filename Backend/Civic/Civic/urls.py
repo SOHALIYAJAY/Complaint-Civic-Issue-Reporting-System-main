@@ -19,10 +19,10 @@ from django.urls import path
 from complaints.views import createcomplaint
 from complaints.district_views import DistrictDetailView
 from Civic import views
-from Civic.views import getcomplaint,getcomplaintlimit,getpubliccomplaints,compinfo,complaintofficer,officerprofile,officerkpi,adminallcomplaintcart,adimncomplaints,ComplaintDelete,assigncomp,crateofficer,CategoriesList,CategoryDelete,adminstats,TrackComplaint,ComplaintStatus,OfficerDelete,OfficerUpdate,OfficerAnalytics,Logout,UserMonthlyRegistrations
-from accounts.views import RegisterView, LoginView, LogoutView, GoogleLoginView, UserDetail, UpdateUserDetails, UserListCreateView, UserRetrieveUpdateDeleteView, ChangePasswordView, UserActivityView, ToggleTwoFactorView, UserComplaintsView, TestAPIView
+from Civic.views import getcomplaint,getcomplaintlimit,getpubliccomplaints,compinfo,complaintofficer,officerprofile,officerkpi,adminallcomplaintcart,adimncomplaints,ComplaintDelete,assigncomp,crateofficer,CategoriesList,CategoryDelete,adminstats,TrackComplaint,ComplaintStatus,OfficerDelete,OfficerUpdate,OfficerAnalytics,Logout,UserMonthlyRegistrations,admindashboardcard,UserRoleDistribution,ComplaintStatusTrends,CivicUserActivityView
+from accounts.views import RegisterView, LoginView, LogoutView, GoogleLoginView, UserDetail, UpdateUserDetails, UserListCreateView, UserRetrieveUpdateDeleteView, ChangePasswordView, UserActivityView, ToggleTwoFactorView, UserComplaintsView, TestAPIView, AdminProfileView, AdminUpdateProfileView, AdminSystemSettingsView
 from contact_us.views import ContactUSview
-from departments.views import OfficerDetail
+from departments.views import OfficerDetail, department_profile, department_officers, department_complaints, department_performance, update_department_profile
 
 
 urlpatterns = [
@@ -32,6 +32,9 @@ urlpatterns = [
     path('api/getcomplaintlimit/',getcomplaintlimit.as_view(),name='getcomplaintlimit'),
     path('api/getpubliccomplaints/',getpubliccomplaints.as_view(),name='getpubliccomplaints'),
     path('complaintsinfo/',views.complaintsinfo,name='complaintsinfo'),
+    path('api/recent-complaints-admin/',views.recent_complaints_admin,name='recent_complaints_admin'),
+    path('api/complaint-priority-distribution/',views.ComplaintPriorityDistribution.as_view(),name='complaint_priority_distribution'),
+    path('api/admin-user-stats/',views.AdminUserStats.as_view(),name='admin_user_stats'),
     path('api/complaintDetails/<str:pk>',views.complaintDetails,name='complaintDetails'),
     # path('api/complaintsinfo/',complaintsinfo,name='complaintsinfo'),
     path('api/getcompinfo/',compinfo.as_view(),name='compinfo'),
@@ -50,6 +53,10 @@ urlpatterns = [
     path('api/user-activity/', UserActivityView.as_view(), name='user-activity'),
     path('api/toggle-2fa/', ToggleTwoFactorView.as_view(), name='toggle-2fa'),
     path('api/usercomplaints/', UserComplaintsView.as_view(), name='user-complaints'),
+    # Admin Profile and Settings
+    path('api/admin/profile/', AdminProfileView.as_view(), name='admin-profile'),
+    path('api/admin/update-profile/', AdminUpdateProfileView.as_view(), name='admin-update-profile'),
+    path('api/admin/system-settings/', AdminSystemSettingsView.as_view(), name='admin-system-settings'),
     path('api/contact/',ContactUSview.as_view(),name='contact'),
     path('api/compinfo/',views.complaintinfo.as_view(),name='compinfo'),
     path('api/deptinfo/',views.deptinfo.as_view(),name='deptinfo'),
@@ -68,6 +75,10 @@ urlpatterns = [
     path('api/deletecategory/<int:pk>/', CategoryDelete.as_view(), name='delete-category'),
     path('api/updatecategory/<int:pk>/', views.CategoryUpdate.as_view(), name='update-category'),
     path('api/adminstats/', adminstats.as_view(), name='adminstats'),
+    path('api/admindashboardcard/', admindashboardcard.as_view(), name='admindashboardcard'),
+    path('api/user-role-distribution/', UserRoleDistribution.as_view(), name='user-role-distribution'),
+    path('api/complaint-status-trends/', ComplaintStatusTrends.as_view(), name='complaint-status-trends'),
+    path('api/user-activity/', CivicUserActivityView.as_view(), name='user-activity'),
     path('api/categorieslist/',views.CategoryList.as_view(),name='categorieslist'),
     path('api/totalcategories/',views.TotalCategories.as_view(),name='totalcategories'),
     path('api/testcategories/',views.TestCategories.as_view(),name='testcategories'),
@@ -83,6 +94,11 @@ urlpatterns = [
     path('api/complaints/status/',views.ComplaintStatusStats.as_view(),name='complaint-status-stats'),
     path('api/complaints/monthly/',views.ComplaintMonthlyStats.as_view(),name='complaint-monthly-stats'),
     path('api/department/dashboard/',views.DepartmentDashboardStats.as_view(),name='department-dashboard-stats'),
+    path('api/department/profile/', department_profile, name='department-profile'),
+    path('api/department/officers/', department_officers, name='department-officers'),
+    path('api/department/complaints/', department_complaints, name='department-complaints'),
+    path('api/department/performance/', department_performance, name='department-performance'),
+    path('api/department/update-profile/', update_department_profile, name='update-department-profile'),
     path('api/UserDistrictWise/',views.UserDistrictWise.as_view(),name='UserDistrictWise'),
     path('api/user-registrations/monthly/', UserMonthlyRegistrations.as_view(), name='user-monthly-registrations')
 ]
