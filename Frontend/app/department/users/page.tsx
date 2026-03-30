@@ -202,7 +202,7 @@ export default function DepartmentUsersPage() {
           date_joined: user.date_joined || user.created_at || new Date().toISOString(),
           last_login: user.last_login,
           complaint_count: user.complaint_count || 0
-        })).filter(user => {
+        })).filter((user: any) => {
           // Filter out admin users - only show Civic Users and Department Users
           const userRole = user.role?.toLowerCase() || ''
           return !userRole.includes('admin') && !userRole.includes('administrator')
@@ -670,7 +670,6 @@ export default function DepartmentUsersPage() {
                   fill="#2563eb" 
                   radius={[8, 8, 0, 0]}
                   barSize={20}
-                  barCategoryGap="20%"
                 />
               </BarChart>
             </ResponsiveContainer>

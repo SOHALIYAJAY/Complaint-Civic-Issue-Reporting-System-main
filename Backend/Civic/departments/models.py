@@ -9,12 +9,15 @@ class Department(models.Model):
         ('SEWERAGE', 'Sewerage & Drainage'),
         ('SANITATION', 'Sanitation & Garbage'),
         ('LIGHTING', 'Street Lighting'),
+        ('HEALTH', 'Public Health Hazard'),
         ('PARKS', 'Parks & Public Spaces'),
         ('ANIMALS', 'Stray Animals'),
         ('ILLEGAL_CONSTRUCTION', 'Illegal Construction'),
         ('ENCROACHMENT', 'Encroachment'),
         ('PROPERTY_DAMAGE', 'Public Property Damage'),
+        ('NOISE', 'Noise Pollution'),
         ('ELECTRICITY', 'Electricity & Power Issues'),
+        ('VENDORS', 'Street Vendor / Hawker Issues'),
         ('OTHER', 'Other'),
     ]
     
@@ -28,9 +31,9 @@ class Department(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def save(self, *args, **kwargs):
-        # Store the category code (e.g. 'ROADS') in `name` as requested.
-        if not self.name and self.category :
-            self.name = dict(self.CATEGORY_CHOICES)
+        # Auto-populate name from the category label if not set
+        if not self.name and self.category:
+            self.name = dict(self.CATEGORY_CHOICES).get(self.category, self.category)
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -39,8 +42,10 @@ class Department(models.Model):
 
 class Officer(models.Model):
     officer_id = models.CharField(max_length=10, primary_key=True)
-    # complaint = models.ForeignKey('complaints.Complaint', on_delete=models.CASCADE, related_name='assigned_officers')
-    name=models.CharField(max_length=100)
-    email=models.EmailField()
-    phone=models.CharField(max_length=15)
-    is_available=models.BooleanField(default=True)
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone = models.CharField(max_length=15)
+    is_available = models.BooleanField(default=True)
+    department = models.ForeignKey(
+        Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='dept_officers'
+    )

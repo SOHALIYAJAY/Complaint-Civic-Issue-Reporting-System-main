@@ -1,14 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Menu, X, LogOut, Settings, LayoutDashboard, FileText, Users, Building2, UserCog, Tag, Home } from 'lucide-react'
+import { Menu, X, LogOut, Settings, LayoutDashboard, FileText, Users, Building2, UserCog, Tag, Home, User, HelpCircle, Lock } from 'lucide-react'
+import Link from 'next/link'
 import RequireAuth from '@/components/auth/RequireAuth'
+import ChangePasswordModal from '@/components/profile/change-password-modal'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [userInitial, setUserInitial] = useState('A')
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      const u = JSON.parse(userData)
+      setUserInitial((u.username || u.first_name || 'A').charAt(0).toUpperCase())
+    }
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const menuItems = [
     { icon: Home, label: 'Home', path: '/', group: 'Navigation' },
@@ -91,7 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Footer */}
         <div className="p-3 border-t border-primary-foreground/20">
           <button 
-            onClick={() => router.push('/admin/logout')}
+            onClick={() => router.push('/logout')}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-400/20 transition-all font-medium"
           >
             <LogOut className="w-5 h-5" />
@@ -115,19 +136,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Profile */}
-              <button 
-                onClick={() => router.push('/admin/settings')}
-                className="flex items-center gap-3 pl-4 border-l border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors"
-              >
-                <div className="w-9 h-9 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-semibold text-sm">
-                  AD
-                </div>
-                <div className="hidden md:block">
-                  <p className="text-sm font-medium text-[#1E293B]">Admin</p>
-                  <p className="text-xs text-[#64748B]">Administrator</p>
-                </div>
-              </button>
+              {/* Profile Dropdown */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center gap-3 pl-4 border-l border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-semibold text-sm">
+                    {userInitial}
+                  </div>
+                  <div className="hidden md:block">
+                    <p className="text-sm font-medium text-[#1E293B]">Admin</p>
+                    <p className="text-xs text-[#64748B]">Administrator</p>
+                  </div>
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                    <Link
+                      href="/admin/settings"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <User className="w-4 h-4" /> Profile
+                    </Link>
+                    <button
+                      onClick={() => { setProfileOpen(false); setShowPasswordModal(true) }}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Lock className="w-4 h-4" /> Change Password
+                    </button>
+                    <Link
+                      href="/contact"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <HelpCircle className="w-4 h-4" /> Query
+                    </Link>
+                    <div className="border-t border-gray-100" />
+                    <button
+                      onClick={() => { setProfileOpen(false); router.push('/logout') }}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -138,6 +192,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </main>
       </div>
       </div>
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </RequireAuth>
   )
 }

@@ -157,6 +157,25 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# CORS Headers Configuration
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_EXPOSE_HEADERS = [
+    'access-control-allow-credentials',
+    'authorization',
+    'content-type',
+]
+
 # Exempt API endpoints from CSRF
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
@@ -173,6 +192,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [],
+    'EXCEPTION_HANDLER': 'accounts.exceptions.custom_exception_handler',
 }
 
 # JWT Settings

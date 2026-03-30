@@ -16,10 +16,13 @@ interface Complaint {
   priority_level: 'Low' | 'Medium' | 'High'
 }
 
-const statusConfig = {
-  Pending: { color: 'bg-red-50 text-red-700 border-red-200', label: 'Open', icon: '🔴' },
-  'in-progress': { color: 'bg-amber-50 text-amber-700 border-amber-200', label: 'In Progress', icon: '🟡' },
-  resolved: { color: 'bg-green-50 text-green-700 border-green-200', label: 'Resolved', icon: '🟢' },
+const statusConfig: Record<string, { color: string; label: string; icon: string }> = {
+  Pending:      { color: 'bg-yellow-50 text-yellow-700 border-yellow-200', label: 'Pending',    icon: '🟡' },
+  'In Process': { color: 'bg-blue-50 text-blue-700 border-blue-200',       label: 'In Process', icon: '🔵' },
+  Completed:    { color: 'bg-green-50 text-green-700 border-green-200',    label: 'Completed',  icon: '🟢' },
+  // legacy values
+  'in-progress': { color: 'bg-blue-50 text-blue-700 border-blue-200',     label: 'In Process', icon: '🔵' },
+  resolved:      { color: 'bg-green-50 text-green-700 border-green-200',   label: 'Completed',  icon: '🟢' },
 }
 
 const priorityConfig = {
@@ -32,10 +35,17 @@ export default function ActivityFeed() {
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [loading, setLoading] = useState(true)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  const getApiBase = () => {
+    const env = process.env.NEXT_PUBLIC_API_URL || ''
+    if (env) return env
+    if (typeof window !== 'undefined') return `${window.location.protocol}//${window.location.hostname}:8000`
+    return 'http://127.0.0.1:8000'
+  }
 
 useEffect(() => {
   setLoading(true)
+  const API_BASE_URL = getApiBase()
   const token = localStorage.getItem('access_token')
   const isTokenValid = Boolean(token && token !== 'undefined' && token !== 'null')
   setIsLoggedIn(isTokenValid)

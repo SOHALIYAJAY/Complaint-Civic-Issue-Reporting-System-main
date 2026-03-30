@@ -15,8 +15,10 @@ import {
   Activity,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Lock
 } from 'lucide-react'
+import ChangePasswordModal from '@/components/profile/change-password-modal'
 
 interface OfficerProfile {
   id: number
@@ -46,6 +48,7 @@ export default function OfficerProfilePage() {
     address: ''
   })
   const [availabilityUpdating, setAvailabilityUpdating] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
 
@@ -195,6 +198,7 @@ export default function OfficerProfilePage() {
 
   return (
     <div className="p-6 space-y-6">
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div className="flex items-center justify-between">
@@ -430,27 +434,39 @@ export default function OfficerProfilePage() {
 
           {/* Recent Activity */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-4">
               <Clock className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
             </div>
-            
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span className="text-gray-600">Last login: {profile.lastLogin || 'Unknown'}</span>
               </div>
-              
               <div className="flex items-center gap-3 text-sm">
                 <Activity className="w-4 h-4 text-blue-500" />
                 <span className="text-gray-600">Profile updated recently</span>
               </div>
-              
               <div className="flex items-center gap-3 text-sm">
                 <Award className="w-4 h-4 text-yellow-500" />
                 <span className="text-gray-600">Performance score updated</span>
               </div>
             </div>
+          </div>
+
+          {/* Change Password */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Lock className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-gray-900">Security</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Keep your account secure by updating your password regularly.</p>
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+              <Lock className="w-4 h-4" /> Change Password
+            </button>
           </div>
         </div>
       </div>

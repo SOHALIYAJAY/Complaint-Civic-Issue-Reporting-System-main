@@ -25,9 +25,20 @@ class LoginView(APIView):
         email = request.data.get('email')
         password = request.data.get('password')
 
+        if not email or not password:
+            return Response(
+                {'success': False, 'message': 'Email and password are required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
             user = CustomUser.objects.get(email=email)
             if user.check_password(password):
+                if not user.is_active:
+                    return Response(
+                        {'success': False, 'message': 'User account is inactive'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
                 refresh = RefreshToken.for_user(user)
                 return Response({
                     'success': True,
@@ -39,10 +50,15 @@ class LoginView(APIView):
                         'name': user.get_full_name() or user.email,
                         'role': user.User_Role
                     }
-                })
+                }, status=status.HTTP_200_OK)
             return Response({'success': False, 'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         except CustomUser.DoesNotExist:
             return Response({'success': False, 'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(
+                {'success': False, 'message': f'Login error: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class RegisterView(APIView):
     def post(self, request):

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Filter, MoreVertical, Edit, Eye, UserPlus, Shield, AlertCircle, Users, TrendingUp, Activity, RefreshCw, Trash2 } from 'lucide-react'
+import { Search, Filter, MoreVertical, Edit, Eye, UserPlus, Shield, AlertCircle, Users, TrendingUp, Activity, RefreshCw, Trash2, ChevronDown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import api, { apiGet } from '@/lib/api'
 import StatsCard from '@/components/ui/stats-card'
 
@@ -44,6 +44,12 @@ export default function AdminUsersPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
+
+  // Year selector for monthly registrations
+  const CURRENT_YEAR = new Date().getFullYear()
+  const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - i)
+  const [regYear, setRegYear] = useState(CURRENT_YEAR)
+  const [regYearOpen, setRegYearOpen] = useState(false)
   const [newUser, setNewUser] = useState({
     username: '',
     email: '',
@@ -69,6 +75,16 @@ export default function AdminUsersPage() {
   useEffect(() => {
     processAnalytics()
   }, [])
+
+  // Recompute monthly registrations when year changes
+  useEffect(() => {
+    if (users.length > 0) {
+      setAnalyticsData(prev => ({
+        ...prev,
+        monthlyRegistrations: calculateMonthlyFromUsers(users, regYear)
+      }))
+    }
+  }, [regYear, users])
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -180,7 +196,7 @@ export default function AdminUsersPage() {
         setUsers(processedUsers)
 
         // Calculate monthly registrations from actual user data
-        const monthlyRegistrations = calculateMonthlyFromUsers(processedUsers)
+        const monthlyRegistrations = calculateMonthlyFromUsers(processedUsers, regYear)
         console.log('Monthly registrations calculated:', monthlyRegistrations)
 
         // Update analytics data with calculated values
@@ -213,36 +229,22 @@ export default function AdminUsersPage() {
     }
   }
 
-  const calculateMonthlyFromUsers = (users: User[]) => {
-    // Calculate monthly registrations from user join dates
+  const calculateMonthlyFromUsers = (users: User[], year: number) => {
     const monthlyCounts: Record<string, number> = {}
-    
-    // Initialize all months with 0
     const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    allMonths.forEach(month => {
-      monthlyCounts[month] = 0
-    })
-    
+    allMonths.forEach(month => { monthlyCounts[month] = 0 })
     users.forEach(user => {
       if (user.date_joined) {
         try {
           const joinDate = new Date(user.date_joined)
-          if (!isNaN(joinDate.getTime())) {
+          if (!isNaN(joinDate.getTime()) && joinDate.getFullYear() === year) {
             const monthName = joinDate.toLocaleString('default', { month: 'short' })
-            if (monthlyCounts.hasOwnProperty(monthName)) {
-              monthlyCounts[monthName]++
-            }
+            if (monthlyCounts.hasOwnProperty(monthName)) monthlyCounts[monthName]++
           }
-        } catch (error) {
-          console.error('Error parsing date:', user.date_joined, error)
-        }
+        } catch {}
       }
     })
-    
-    return Object.entries(monthlyCounts).map(([month, users]) => ({
-      month,
-      users
-    }))
+    return Object.entries(monthlyCounts).map(([month, users]) => ({ month, users }))
   }
 
   const calculateRoleDistribution = (users: User[]) => {
@@ -268,9 +270,10 @@ export default function AdminUsersPage() {
     
     // Normalize role filter to accept backend role variants like 'Admin-User', 'Civic-User', 'Department-User'
     const roleMap: Record<string, string[]> = {
-      admin: ['admin', 'admin-user', 'admin-user'],
-      officer: ['officer', 'department-user', 'department-user'],
-      user: ['user', 'civic-user', 'civic-user']
+      admin: ['admin-user', 'admin'],
+      officer: ['officer'],
+      user: ['civic-user', 'user'],
+      department: ['department-user'],
     }
 
     const matchesRole = (() => {
@@ -551,108 +554,61 @@ export default function AdminUsersPage() {
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="space-y-6">
-        {/* Monthly Registrations Bar Chart - Full Width */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Monthly User Registrations</h3>
-            <p className="text-sm text-gray-500">New user registrations per month</p>
+      {/* Charts Section — Monthly Registrations, 2/3 width */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Monthly User Registrations</h3>
+              <p className="text-sm text-gray-500">New registrations per month in {regYear}</p>
+            </div>
+            {/* Year dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setRegYearOpen(p => !p)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                {regYear}
+                <ChevronDown className={`w-4 h-4 transition-transform ${regYearOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {regYearOpen && (
+                <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                  {YEAR_OPTIONS.map(y => (
+                    <button
+                      key={y}
+                      onClick={() => { setRegYear(y); setRegYearOpen(false) }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                        regYear === y ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           {analyticsData.monthlyRegistrations && analyticsData.monthlyRegistrations.length > 0 ? (
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analyticsData.monthlyRegistrations}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    tickLine={{ stroke: '#e5e7eb' }}
-                  />
-                  <YAxis 
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    tickLine={{ stroke: '#e5e7eb' }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      padding: '12px'
-                    }}
-                  />
-                  <Bar 
-                    dataKey="users" 
-                    fill="hsl(var(--sidebar-primary))" 
-                    radius={[8, 8, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={analyticsData.monthlyRegistrations} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="regGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} />
+                <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13 }} formatter={(v: any) => [`${v} users`, 'Registrations']} />
+                <Area type="monotone" dataKey="users" stroke="#6366f1" strokeWidth={2.5} fill="url(#regGrad)" dot={{ r: 3, fill: '#6366f1' }} activeDot={{ r: 5 }} />
+              </AreaChart>
+            </ResponsiveContainer>
           ) : (
-            <div className="h-80 flex items-center justify-center">
+            <div className="h-[220px] flex items-center justify-center">
               <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-gray-200 mx-auto mb-4 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-gray-400" />
-                </div>
-                <p className="text-gray-500">No monthly registration data available</p>
-                <p className="text-sm text-gray-400 mt-2">User registration data will appear here</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Role Distribution Pie Chart - Below Bar Chart */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">User Role Distribution</h3>
-            <p className="text-sm text-gray-500">Distribution of users by role</p>
-          </div>
-          {analyticsData.roleDistribution.length > 0 ? (
-            <>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={analyticsData.roleDistribution}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {analyticsData.roleDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: any, name: any) => [`${value} users`, name]} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-6 space-y-2">
-                {analyticsData.roleDistribution.map((entry) => (
-                  <div key={entry.name} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center">
-                      <div 
-                        className="w-3 h-3 rounded-full mr-2" 
-                        style={{ backgroundColor: entry.color }}
-                      />
-                      <span className="text-gray-700">{entry.name}</span>
-                    </div>
-                    <span className="font-medium text-gray-900">{entry.value}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="h-64 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-gray-200 mx-auto mb-4 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-gray-400" />
-                </div>
-                <p className="text-gray-500">No role distribution data available</p>
-                <p className="text-sm text-gray-400 mt-2">Check if users exist in the database</p>
+                <TrendingUp className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">No registrations in {regYear}</p>
               </div>
             </div>
           )}
@@ -683,7 +639,8 @@ export default function AdminUsersPage() {
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
               <option value="officer">Officer</option>
-              <option value="user">User</option>
+              <option value="department">Department</option>
+              <option value="user">Civic User</option>
             </select>
             <select
               value={statusFilter}
@@ -979,9 +936,10 @@ export default function AdminUsersPage() {
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="user">User</option>
-                  <option value="officer">Officer</option>
-                  <option value="admin">Admin</option>
+                  <option value="Civic-User">Civic User</option>
+                  <option value="Department-User">Department User</option>
+                  <option value="Officer">Officer</option>
+                  <option value="Admin-User">Admin User</option>
                 </select>
               </div>
               <div>

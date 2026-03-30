@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
 import { Lock, Eye, EyeOff, Loader2, Check, X } from 'lucide-react'
+import ChangePasswordModal from '@/components/profile/change-password-modal'
 
 export default function SecuritySettings() {
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false })
@@ -16,6 +17,7 @@ export default function SecuritySettings() {
   const [passwordStrength, setPasswordStrength] = useState(0)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [lastLogin, setLastLogin] = useState<{ date: string; location: string; device: string } | null>(null)
 
   useEffect(() => {
@@ -200,8 +202,23 @@ export default function SecuritySettings() {
 
   return (
     <Card className="bg-white border border-slate-200 shadow-md p-6">
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
       <div className="space-y-8">
-      
+        {/* Change Password Button */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Password</p>
+              <p className="text-xs text-slate-500">Update your account password</p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowPasswordModal(true)} className="gap-2">
+            <Lock className="w-3.5 h-3.5" /> Change Password
+          </Button>
+        </div>
 
         {/* Divider */}
         <div className="border-t border-slate-300"></div>

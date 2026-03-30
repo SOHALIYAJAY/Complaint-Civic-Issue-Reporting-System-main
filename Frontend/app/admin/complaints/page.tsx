@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useContext } from 'react'
-import { Download, Filter, RefreshCw } from 'lucide-react'
+import { Download, Filter, RefreshCw, FileText } from 'lucide-react'
 import ComplaintsTable from '../../../components/admin/complaints/ComplaintsTable'
 import ComplaintsFilters from '../../../components/admin/complaints/ComplaintsFilters'
 import ComplaintsKPI from '../../../components/admin/complaints/ComplaintsKPI'
@@ -31,6 +31,19 @@ interface KPIData {
   inprogress_comp: number
   rejected_comp: number
   sla_compliance: number
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  'Pending': 'text-amber-700 border-amber-300',
+  'In Process': 'text-blue-700 border-blue-300',
+  'Completed': 'text-green-700 border-green-300',
+  'Rejected': 'text-red-700 border-red-300',
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  'low': 'text-green-700 border-green-300',
+  'medium': 'text-amber-700 border-amber-300',
+  'high': 'text-red-700 border-red-300',
 }
 
 export default function AllComplaintsPage() {
@@ -389,8 +402,6 @@ export default function AllComplaintsPage() {
           selectedStatus={selectedStatus}
           selectedPriority={selectedPriority}
           selectedDateRange={selectedDateRange}
-          selectedDistrict={selectedDistrict}
-          selectedAssigned={selectedAssigned}
           departments={departments}
           onView={handleViewComplaint}
           onUpdate={handleUpdateComplaint}
@@ -462,72 +473,101 @@ export default function AllComplaintsPage() {
 
       {/* View Modal */}
       {isModalOpen && selectedComplaint && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-sidebar-primary">Complaint Details</h2>
-              <button 
-                onClick={handleCloseModal}
-                className="text-slate-400 hover:text-sidebar-primary transition-colors"
-              >
-                ×
-              </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-br from-sidebar-primary to-sidebar-primary/80 px-6 py-5">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 pr-4">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-white/90 ${STATUS_COLORS[selectedComplaint.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {selectedComplaint.status}
+                    </span>
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-white/90 ${PRIORITY_COLORS[selectedComplaint.priority_level?.toLowerCase()] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {selectedComplaint.priority_level} Priority
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white leading-snug">{selectedComplaint.title}</h2>
+                  <p className="text-white/60 text-xs mt-1">
+                    {selectedComplaint.current_time ? new Date(selectedComplaint.current_time).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date unknown'}
+                  </p>
+                </div>
+                <button onClick={handleCloseModal} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors flex-shrink-0">
+                  <span className="text-lg leading-none">&times;</span>
+                </button>
+              </div>
             </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Complaint ID</p>
-                  <p className="text-sidebar-primary">{(selectedComplaint as any).id}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Category</p>
-                  <p className="text-sidebar-primary">{selectedComplaint.Category}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Location</p>
-                  <p className="text-sidebar-primary">{selectedComplaint.location_address}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700">District</p>
-                  <p className="text-sidebar-primary">{selectedComplaint.location_District}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Priority</p>
-                  <p className="text-sidebar-primary">{selectedComplaint.priority_level}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Status</p>
-                  <p className="text-sidebar-primary">{selectedComplaint.status}</p>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto bg-gray-50">
+              {/* Info grid */}
+              <div className="bg-white rounded-xl border border-gray-100 p-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Complaint Info</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                  {[
+                    { label: 'Category', value: selectedComplaint.Category },
+                    { label: 'Priority', value: selectedComplaint.priority_level },
+                    { label: 'Status', value: selectedComplaint.status },
+                    { label: 'District', value: selectedComplaint.location_District },
+                    { label: 'Taluk', value: selectedComplaint.location_taluk },
+                    { label: 'Filed On', value: selectedComplaint.current_time ? new Date(selectedComplaint.current_time).toLocaleDateString() : 'N/A' },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+                      <p className="text-sm font-medium text-gray-900">{value || '—'}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Date</p>
-                  <p className="text-sidebar-primary">{selectedComplaint.current_time ? new Date(selectedComplaint.current_time).toLocaleDateString() : 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Taluk</p>
-                  <p className="text-sidebar-primary">{selectedComplaint.location_taluk}</p>
-                </div>
+
+              {/* Location */}
+              <div className="bg-white rounded-xl border border-gray-100 p-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Location</p>
+                <p className="text-sm text-gray-800">{selectedComplaint.location_address || '—'}</p>
               </div>
-                <div className="mt-6 flex justify-end gap-3">
-                <button 
-                  onClick={() => selectedComplaint && handleUpdateComplaint(selectedComplaint)}
-                  className="px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary transition-colors"
-                >
-                  Update Complaint
-                </button>
-                <button 
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
+
+              {/* Description */}
+              {(selectedComplaint as any).Description && (
+                <div className="bg-white rounded-xl border border-gray-100 p-5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Description</p>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{(selectedComplaint as any).Description}</p>
+                </div>
+              )}
+
+              {/* Media */}
+              {(selectedComplaint as any).image_video && (() => {
+                const imgUrl = (selectedComplaint as any).image_video
+                const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(imgUrl)
+                const fullUrl = imgUrl.startsWith('http') ? imgUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}${imgUrl}`
+                return (
+                  <div className="bg-white rounded-xl border border-gray-100 p-5">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Attached Media</p>
+                    {isImg ? (
+                      <a href={fullUrl} target="_blank" rel="noopener noreferrer">
+                        <img src={fullUrl} alt="attachment" className="w-full max-h-52 object-cover rounded-lg border border-gray-100 hover:opacity-90 transition-opacity" />
+                      </a>
+                    ) : (
+                      <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-lg border-2 border-dashed border-gray-200 hover:bg-gray-50 transition-colors">
+                        <FileText className="w-5 h-5 text-sidebar-primary" />
+                        <span className="text-sm text-gray-700">View attached file</span>
+                      </a>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-white">
+              <button
+                onClick={() => { handleCloseModal(); handleUpdateComplaint(selectedComplaint) }}
+                className="px-4 py-2 bg-sidebar-primary text-white rounded-lg text-sm font-medium hover:bg-sidebar-primary/90 transition-colors"
+              >
+                Edit Complaint
+              </button>
+              <button onClick={handleCloseModal} className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -566,8 +606,8 @@ export default function AllComplaintsPage() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
                   <select value={editingComplaint.status} onChange={(e) => setEditingComplaint({ ...editingComplaint, status: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sidebar-primary focus:border-transparent">
                     <option value="Pending">Pending</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
+                    <option value="In Process">In Progress</option>
+                    <option value="Completed">Completed</option>
                   </select>
                 </div>
               </div>

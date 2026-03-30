@@ -8,17 +8,24 @@ import { MapPin, Upload, X, AlertCircle, Play } from 'lucide-react'
 
 const ComplaintMap = dynamic(() => import('./complaint-map'), { ssr: false })
 
-// Categories matching database
-const categories = [
-  { value: 'Illegal Construction', label: 'Illegal Construction' },
-  { value: 'Encroachment', label: 'Encroachment' },
-  { value: 'Public Property Damage', label: 'Public Property Damage' },
-  { value: 'Electricity & Power Issues', label: 'Electricity & Power Issues' },
-  { value: 'Other', label: 'Other' },
-  { value: 'Parks & Public Spaces', label: 'Parks & Public Spaces' },
-  { value: 'Street Lighting', label: 'Street Lighting' },
-  { value: 'Stray Animals', label: 'Stray Animals' },
-  { value: 'Sanitation & Garbage', label: 'Sanitation & Garbage' }
+// Departments — exact names as source of truth for complaint routing
+const DEPARTMENTS = [
+  'Roads & Infrastructure',
+  'Traffic & Road Safety',
+  'Water Supply',
+  'Sewerage & Drainage',
+  'Sanitation & Garbage',
+  'Street Lighting',
+  'Public Health Hazard',
+  'Parks & Public Spaces',
+  'Stray Animals',
+  'Illegal Construction',
+  'Encroachment',
+  'Public Property Damage',
+  'Noise Pollution',
+  'Electricity & Power Issues',
+  'Street Vendor / Hawker Issues',
+  'Other',
 ]
 
 const districts = [
@@ -314,16 +321,13 @@ export default function RaiseComplaintForm() {
       }
       // Do not show in-form banner or alert here; keep UX minimal and avoid duplicate messages
       setSubmitted(true)
-      // Show success message in the UI (include server-provided id if available)
-      const serverId = (data as any)?.id || (data as any)?.complaint_id || (data as any)?.pk
-      const msg = serverId ? `Complaint submitted successfully. ID: ${serverId}` : 'Complaint submitted successfully.'
-      setSuccessMessage(msg)
+      setSuccessMessage('Complaint submitted successfully.')
       // Auto-hide after 8 seconds
       setTimeout(() => setSuccessMessage(''), 8000)
       // Notify other open tabs (admin dashboard) that a new complaint was created
       try {
         const bc = new BroadcastChannel('complaints')
-        bc.postMessage({ type: 'new-complaint', complaintId: serverId })
+        bc.postMessage({ type: 'new-complaint' })
         bc.close()
       } catch (e) {
         // BroadcastChannel may not be available in older browsers; ignore errors
@@ -401,10 +405,10 @@ export default function RaiseComplaintForm() {
                 />
               </div>
 
-              {/* Category */}
+              {/* Department */}
               <div className="glass-effect rounded-lg p-6 border border-border">
                 <label className="block text-sm font-semibold text-foreground mb-3">
-                  Category <span className="text-red-500">*</span>
+                  Department <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="Category"
@@ -413,11 +417,14 @@ export default function RaiseComplaintForm() {
                   className="w-full px-4 py-3 rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
                   required
                 >
-                  <option value="">Select a category</option>
-                  {categories.map(cat => (
-                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  <option value="">Select department</option>
+                  {DEPARTMENTS.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Your complaint will be routed to the selected department.
+                </p>
               </div>
 
               {/* Description */}

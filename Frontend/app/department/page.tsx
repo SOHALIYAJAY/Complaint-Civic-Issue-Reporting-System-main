@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from "react"
 import {
   BarChart3, TrendingUp, Users, FileText, Clock, CheckCircle2,
-  Activity, AlertTriangle, Calendar, Target, RefreshCw, Eye, UserCheck
+  Activity, AlertTriangle, Calendar, Target, RefreshCw, Eye, ChevronDown
 } from "lucide-react"
 import {
   ResponsiveContainer, PieChart, Pie, Tooltip, Cell,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+  AreaChart, Area, XAxis, YAxis, CartesianGrid
 } from "recharts"
 import Link from "next/link"
 
@@ -47,6 +47,7 @@ interface ActivityItem {
 }
 
 interface DashboardData {
+  department?: { name: string; category: string; email: string; phone: string; head: string; officer_count: number }
   stats: Stats
   performance: Performance
   monthlyCounts: Record<string, number>
@@ -57,10 +58,12 @@ interface DashboardData {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+const CURRENT_YEAR = new Date().getFullYear()
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - i)
 
 const STATUS_STYLES: Record<string, string> = {
-  "pending":     "bg-amber-100 text-amber-800 border border-amber-200",
-  "in-progress": "bg-blue-100 text-blue-800 border border-blue-200",
+  "pending": "bg-red-100 text-red-800 border border-red-200",
+  "in-progress":     "bg-amber-100 text-amber-800 border border-amber-200",
   "resolved":    "bg-emerald-100 text-emerald-800 border border-emerald-200",
 }
 
@@ -70,7 +73,8 @@ const PRIORITY_STYLES: Record<string, string> = {
   "low":    "bg-green-100 text-green-700",
 }
 
-const PIE_COLORS = ["#f59e0b", "#3b82f6", "#10b981"]
+const PIE_COLORS = ["#f59e0b", "#6366f1", "#10b981"]
+const AREA_GRADIENT_ID = "deptAreaGrad"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -136,18 +140,24 @@ export default function DepartmentDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [chartYear, setChartYear] = useState(CURRENT_YEAR)
+  const [yearOpen, setYearOpen] = useState(false)
+  // Store all years' monthly data keyed by year
+  const [allMonthlyData, setAllMonthlyData] = useState<Record<number, Record<string, number>>>({})
 
   const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
   const fetchData = useCallback(async () => {
     try {
       setError(null)
-      const res = await fetch(`${API}/api/department/dashboard/`, {
-        headers: getAuthHeaders(),
-      })
+      const res = await fetch(`${API}/api/department/dashboard/`, { headers: getAuthHeaders() })
       if (!res.ok) throw new Error(`Server error ${res.status}`)
       const json = await res.json()
       setData(json)
+      // Cache current year monthly counts from dashboard response
+      if (json.monthlyCounts) {
+        setAllMonthlyData(prev => ({ ...prev, [CURRENT_YEAR]: json.monthlyCounts }))
+      }
       setLastUpdated(new Date())
     } catch (e: any) {
       setError(e.message || "Failed to load dashboard")
@@ -157,11 +167,30 @@ export default function DepartmentDashboard() {
     }
   }, [API])
 
+  // Fetch monthly data for a specific year via complaint-status-trends
+  const fetchYearData = useCallback(async (year: number) => {
+    if (allMonthlyData[year]) return // already cached
+    try {
+      const res = await fetch(`${API}/api/complaint-status-trends/?year=${year}`, { headers: getAuthHeaders() })
+      if (!res.ok) return
+      const json = await res.json()
+      const monthly: Record<string, number> = {}
+      ;(json.monthly_data ?? []).forEach((d: any, i: number) => {
+        monthly[String(i + 1)] = Number(d.complaints ?? 0)
+      })
+      setAllMonthlyData(prev => ({ ...prev, [year]: monthly }))
+    } catch {}
+  }, [API, allMonthlyData])
+
   useEffect(() => {
     fetchData()
     const id = setInterval(fetchData, 30_000)
     return () => clearInterval(id)
   }, [fetchData])
+
+  useEffect(() => {
+    fetchYearData(chartYear)
+  }, [chartYear])
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -172,7 +201,7 @@ export default function DepartmentDashboard() {
 
   const monthlyChartData = MONTH_NAMES.map((name, i) => ({
     name,
-    complaints: data?.monthlyCounts?.[String(i + 1)] ?? 0,
+    complaints: (allMonthlyData[chartYear] ?? data?.monthlyCounts ?? {})[String(i + 1)] ?? 0,
   }))
 
   const pieData = data
@@ -244,25 +273,50 @@ export default function DepartmentDashboard() {
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Department Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Real-time overview of department operations</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {data.department?.category
+              ? `${data.department.category} Department Head Dashboard`
+              : 'Department Head Dashboard'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {data.department?.category
+              ? `Real-time overview of ${data.department.category} Department operations`
+              : 'Real-time overview of department operations'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          {lastUpdated && (
-            <span className="text-xs text-gray-400">
-              Updated {lastUpdated.toLocaleTimeString()}
-            </span>
-          )}
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+          {lastUpdated && <span className="text-xs text-gray-400">Updated {lastUpdated.toLocaleTimeString()}</span>}
+          <button onClick={handleRefresh} disabled={refreshing}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
           </button>
         </div>
       </div>
+
+      {/* ── Dept Info Banner ── */}
+      {data.department && data.department.name !== 'All Departments' && (
+        <div className="bg-[#1e3a5f] rounded-xl p-5 text-white">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-white/60 uppercase tracking-wider">Your Department</p>
+                <p className="text-lg font-bold">
+                  {data.department.category ? `${data.department.category} Department` : data.department.name}
+                </p>
+                <p className="text-sm text-white/70">Department Head Portal</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-6 text-sm">
+              <div><p className="text-white/60 text-xs">Head Officer</p><p className="font-semibold">{data.department.head}</p></div>
+              <div><p className="text-white/60 text-xs">Officers</p><p className="font-semibold">{data.department.officer_count}</p></div>
+              {data.department.email && <div><p className="text-white/60 text-xs">Email</p><p className="font-semibold">{data.department.email}</p></div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -271,8 +325,8 @@ export default function DepartmentDashboard() {
           value={stats.total}
           sub="All complaints in system"
           icon={<FileText className="w-5 h-5" />}
-          iconBg="bg-indigo-50 text-indigo-600"
-          borderColor="border-t-indigo-500"
+          iconBg="bg-[#eef1f7] text-[#1e3a5f]"
+          borderColor="border-t-[#1e3a5f]"
         />
         <KpiCard
           label="Pending"
@@ -287,8 +341,8 @@ export default function DepartmentDashboard() {
           value={stats.inProgress}
           sub="Currently being addressed"
           icon={<TrendingUp className="w-5 h-5" />}
-          iconBg="bg-blue-50 text-blue-600"
-          borderColor="border-t-blue-500"
+          iconBg="bg-[#eef1f7] text-[#1e3a5f]"
+          borderColor="border-t-[#1e3a5f]"
         />
         <KpiCard
           label="Resolved"
@@ -301,28 +355,33 @@ export default function DepartmentDashboard() {
       </div>
 
       {/* ── Charts Row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-        {/* Complaint Status Pie */}
-        <SectionCard
-          title="Complaint Status"
-          subtitle="Distribution by current status"
-          icon={<BarChart3 className="w-5 h-5" />}
-          iconBg="bg-indigo-50 text-indigo-600"
-        >
-          <div className="p-5">
-            {totalPie > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={240}>
+        {/* Donut Chart — 2 cols */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Status Breakdown</p>
+              <h3 className="text-base font-bold text-gray-900 mt-0.5">Complaint Distribution</h3>
+            </div>
+            <div className="bg-[#eef1f7] text-[#1e3a5f] p-2 rounded-lg">
+              <BarChart3 className="w-4 h-4" />
+            </div>
+          </div>
+
+          {totalPie > 0 ? (
+            <>
+              {/* Donut with center label */}
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
                       data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={90}
+                      cx="50%" cy="50%"
+                      innerRadius={58} outerRadius={88}
                       dataKey="value"
-                      paddingAngle={3}
+                      paddingAngle={4}
+                      strokeWidth={0}
                     >
                       {pieData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
@@ -333,51 +392,116 @@ export default function DepartmentDashboard() {
                         const pct = totalPie ? ((val / totalPie) * 100).toFixed(1) : "0"
                         return [`${val} (${pct}%)`, name]
                       }}
-                      contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}
+                      contentStyle={{ borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex justify-center gap-4 mt-2">
-                  {pieData.map((e, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: e.color }} />
-                      <span className="text-xs text-gray-600">{e.name}</span>
-                      <span className="text-xs font-semibold text-gray-800">{e.value}</span>
+                {/* Center text overlay */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-2xl font-bold text-gray-900">{totalPie}</span>
+                  <span className="text-xs text-gray-400 font-medium">Total</span>
+                </div>
+              </div>
+
+              {/* Legend rows */}
+              <div className="px-5 pb-5 space-y-2.5 mt-1">
+                {pieData.map((e, i) => {
+                  const pct = totalPie ? Math.round((e.value / totalPie) * 100) : 0
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: e.color }} />
+                      <span className="text-sm text-gray-600 flex-1">{e.name}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: e.color }} />
+                        </div>
+                        <span className="text-xs font-bold text-gray-900 w-6 text-right">{e.value}</span>
+                      </div>
                     </div>
+                  )
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="h-56 flex flex-col items-center justify-center text-gray-400 gap-2">
+              <FileText className="w-10 h-10 text-gray-200" />
+              <p className="text-sm">No complaint data yet</p>
+            </div>
+          )}
+        </div>
+
+        {/* Area Chart — 3 cols */}
+        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trend Analysis</p>
+              <h3 className="text-base font-bold text-gray-900 mt-0.5">Monthly Complaints — {chartYear}</h3>
+            </div>
+            {/* Year dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setYearOpen(p => !p)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                {chartYear}
+                <ChevronDown className={`w-4 h-4 transition-transform ${yearOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {yearOpen && (
+                <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                  {YEAR_OPTIONS.map(y => (
+                    <button
+                      key={y}
+                      onClick={() => { setChartYear(y); setYearOpen(false) }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                        chartYear === y ? 'bg-[#eef1f7] text-[#1e3a5f] font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {y}
+                    </button>
                   ))}
                 </div>
-              </>
-            ) : (
-              <div className="h-48 flex flex-col items-center justify-center text-gray-400 gap-2">
-                <FileText className="w-10 h-10 text-gray-300" />
-                <p className="text-sm">No complaint data yet</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </SectionCard>
 
-        {/* Monthly Bar Chart */}
-        <SectionCard
-          title="Monthly Complaints"
-          subtitle={`Complaints filed in ${new Date().getFullYear()}`}
-          icon={<Activity className="w-5 h-5" />}
-          iconBg="bg-blue-50 text-blue-600"
-        >
-          <div className="p-5">
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#6B7280" }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}
-                  cursor={{ fill: "#EFF6FF" }}
+          <div className="px-2 pb-4">
+            <ResponsiveContainer width="100%" height={248}>
+              <AreaChart data={monthlyChartData} margin={{ top: 8, right: 16, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id={AREA_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1e3a5f" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#1e3a5f" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: "#94A3B8" }}
+                  axisLine={false} tickLine={false}
                 />
-                <Bar dataKey="complaints" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={36} />
-              </BarChart>
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "#94A3B8" }}
+                  axisLine={false} tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+                  cursor={{ stroke: "#1e3a5f", strokeWidth: 1, strokeDasharray: "4 4" }}
+                  formatter={(v: any) => [`${v} complaints`, "Count"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="complaints"
+                  stroke="#1e3a5f"
+                  strokeWidth={2.5}
+                  fill={`url(#${AREA_GRADIENT_ID})`}
+                  dot={{ r: 3.5, fill: "#1e3a5f", strokeWidth: 0 }}
+                  activeDot={{ r: 5.5, fill: "#1e3a5f", stroke: "#fff", strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
-        </SectionCard>
+        </div>
       </div>
 
       {/* ── Performance + Activity Row ── */}
@@ -402,7 +526,7 @@ export default function DepartmentDashboard() {
                 label: "Avg Resolution Time",
                 value: `${performance.avgResolutionTime} days`,
                 bar: Math.min(100, performance.avgResolutionTime * 10),
-                color: "bg-blue-500",
+                color: "bg-[#1e3a5f]",
               },
               {
                 label: "Officer Workload",
@@ -444,11 +568,11 @@ export default function DepartmentDashboard() {
             {recentActivity.length > 0 ? recentActivity.map(a => (
               <div key={a.id} className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
                 <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  a.type === "resolution" ? "bg-emerald-100" : "bg-blue-100"
+                  a.type === "resolution" ? "bg-emerald-100" : "bg-[#eef1f7]"
                 }`}>
                   {a.type === "resolution"
                     ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    : <FileText className="w-3.5 h-3.5 text-blue-600" />}
+                    : <FileText className="w-3.5 h-3.5 text-[#1e3a5f]" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-800 truncate">{a.description}</p>
@@ -474,34 +598,6 @@ export default function DepartmentDashboard() {
         </SectionCard>
       </div>
 
-      {/* ── Quick Actions ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Link
-          href="/department/assigned"
-          className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4 hover:border-blue-400 hover:shadow-md transition-all group"
-        >
-          <div className="bg-blue-50 text-blue-600 p-3 rounded-lg group-hover:bg-blue-100 transition-colors">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Manage Complaints</p>
-            <p className="text-sm text-gray-500">View and assign complaints</p>
-          </div>
-        </Link>
-        <Link
-          href="/department/officers"
-          className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-center gap-4 hover:border-purple-400 hover:shadow-md transition-all group"
-        >
-          <div className="bg-purple-50 text-purple-600 p-3 rounded-lg group-hover:bg-purple-100 transition-colors">
-            <UserCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">Manage Officers</p>
-            <p className="text-sm text-gray-500">Manage department officers</p>
-          </div>
-        </Link>
-      </div>
-
       {/* ── Recent Complaints Table ── */}
       <SectionCard
         title="Recent Complaints"
@@ -510,7 +606,7 @@ export default function DepartmentDashboard() {
         iconBg="bg-gray-100 text-gray-600"
       >
         <div className="flex items-center justify-end px-5 pt-3">
-          <Link href="/department/assigned" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">
+          <Link href="/department/assigned" className="inline-flex items-center gap-1 text-sm text-[#1e3a5f] hover:text-[#2d5a9e] font-medium">
             View All <Eye className="w-4 h-4" />
           </Link>
         </div>
@@ -530,7 +626,7 @@ export default function DepartmentDashboard() {
               <tbody className="divide-y divide-gray-50">
                 {recentComplaints.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3 font-mono text-xs text-blue-600 font-semibold">#{c.id}</td>
+                    <td className="px-5 py-3 font-mono text-xs text-[#1e3a5f] font-semibold">#{c.id}</td>
                     <td className="px-5 py-3 text-gray-900 max-w-[180px] truncate">{c.title}</td>
                     <td className="px-5 py-3 text-gray-500">{c.Category || "—"}</td>
                     <td className="px-5 py-3">
@@ -580,10 +676,10 @@ export default function DepartmentDashboard() {
               <p className="text-xs text-amber-700">{stats.pending} pending complaints</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <TrendingUp className="w-5 h-5 text-blue-600 flex-shrink-0" />
+          <div className="flex items-center gap-3 p-4 bg-[#eef1f7] rounded-lg border border-[#c5d0e0]">
+            <TrendingUp className="w-5 h-5 text-[#1e3a5f] flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-blue-900">
+              <p className="text-sm font-medium text-[#1e3a5f]">
                 SLA:{" "}
                 <span className={
                   performance.slaCompliance >= 80 ? "text-emerald-600" :
@@ -593,7 +689,7 @@ export default function DepartmentDashboard() {
                    performance.slaCompliance >= 60 ? "Good" : "Needs Improvement"}
                 </span>
               </p>
-              <p className="text-xs text-blue-700">{performance.slaCompliance.toFixed(1)}% compliance</p>
+              <p className="text-xs text-[#1e3a5f]/70">{performance.slaCompliance.toFixed(1)}% compliance</p>
             </div>
           </div>
         </div>

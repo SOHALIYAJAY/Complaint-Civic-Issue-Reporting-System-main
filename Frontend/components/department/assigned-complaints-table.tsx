@@ -1,25 +1,11 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
+import { useState, useMemo, useEffect, forwardRef, useImperativeHandle } from "react"
 import { useRouter } from "next/navigation"
-import api, { apiGet } from '@/lib/api'
+import { apiGet } from '@/lib/api'
 import {
-  Search,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  UserPlus,
-  RefreshCw,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  Calendar,
-  SortAsc,
-  SortDesc,
-  MessageSquare,
-  CheckCircle2,
-  ArrowUpRight,
-  Upload,
+  Search, Filter, ChevronLeft, ChevronRight, UserPlus, RefreshCw,
+  ChevronDown, ChevronUp, Eye, MessageSquare, CheckCircle2, ArrowUpRight, Upload,
 } from "lucide-react"
 
 export interface Complaint {
@@ -37,15 +23,16 @@ export interface Complaint {
   status: "Pending" | "in-progress" | "resolved"
   current_time: string
   is_assignd?: boolean
-  officer_id ?: string
+  officer_id?: string
   officer_name?: string
 }
 
-
 const statusColors: Record<string, string> = {
   Pending: "bg-amber-100 text-amber-700 border-amber-200",
-  "in-progress": "bg-blue-100 text-[#1e40af] border-blue-200",
-  resolved: "bg-green-100 text-[#16a34a] border-green-200",
+  "In Process": "bg-indigo-50 text-indigo-600 border-indigo-200",
+  Completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "in-progress": "bg-indigo-50 text-indigo-600 border-indigo-200",
+  resolved: "bg-emerald-100 text-emerald-700 border-emerald-200",
 }
 
 const priorityColors: Record<string, string> = {
@@ -54,336 +41,115 @@ const priorityColors: Record<string, string> = {
   Low: "bg-slate-50 text-slate-500 border-slate-200",
 }
 
-function SlaBar({ percent, remaining }: { percent: number; remaining: string }) {
-  let barColor = "bg-[#16a34a]"
-  if (percent >= 70 && percent < 90) barColor = "bg-[#f59e0b]"
-  if (percent >= 90 && percent < 100) barColor = "bg-[#dc2626]"
-  if (percent === 100 && remaining === "Done") barColor = "bg-[#16a34a]"
-
-  return (
-    <div className="flex items-center gap-2 min-w-[130px]">
-      <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-        <div
-          className={`${barColor} h-full rounded-full transition-all duration-500`}
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-      <span
-        className={`text-[11px] whitespace-nowrap w-14 text-right font-medium ${
-          percent >= 90 && remaining !== "Done" ? "text-[#dc2626]" : "text-slate-500"
-        }`}
-      >
-        {remaining}
-      </span>
-    </div>
-  )
-}
-
-// Small button component to navigate to complaint details
 function ViewDetailsButton({ complaint, className = "" }: { complaint?: Complaint | null; className?: string }) {
   const router = useRouter()
   if (!complaint) return null
-
-  const handleClick = () => {
-    const route = `/department/complaint-details/${complaint.id}`
-    try {
-      router.push(route)
-    } catch (err) {
-      // Fallback to window location if router fails
-      window.location.href = route
-    }
-  }
-
   return (
     <button
       type="button"
       title={`View details for complaint #${complaint.id}`}
-      className={`inline-flex items-center justify-center p-2 text-sm text-[#3b82f6] hover:bg-blue-50 rounded ${className}`}
-      onClick={handleClick}
+      className={`inline-flex items-center justify-center p-2 text-sm text-slate-500 hover:bg-slate-100 rounded ${className}`}
+      onClick={() => router.push(`/department/complaint-details/${complaint.id}`)}
     >
       <Eye className="w-4 h-4" />
     </button>
   )
 }
 
-// categories are loaded from the backend API
-// (hook state moved into the component to avoid invalid hook calls)
-
-const AssignedComplaintsTable = forwardRef<{
-  refreshComplaints: () => void
-}, {
-  onAssign: (complaint: Complaint) => void
-  onViewDetails?: (complaint: Complaint) => void
-  initialView?: "list" | "category"
-  onAssignmentComplete?: () => void
-}>(({
-  onAssign,
-  onViewDetails,
-  initialView,
-  onAssignmentComplete,
-}, ref) => {
-  const router = useRouter()
+const AssignedComplaintsTable = forwardRef<
+  { refreshComplaints: () => void },
+  {
+    onAssign: (complaint: Complaint) => void
+    onViewDetails?: (complaint: Complaint) => void
+    initialView?: "list" | "category"
+    onAssignmentComplete?: () => void
+  }
+>(({ onAssign, onViewDetails, initialView, onAssignmentComplete }, ref) => {
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [priorityFilter, setPriorityFilter] = useState("All")
-  const [categoryFilter, setCategoryFilter] = useState("All")
   const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest")
   const [page, setPage] = useState(1)
-  const [viewMode, setViewMode] = useState<"list" | "category">(initialView || "category")
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(["WATER", "ROADS"]))
+  const [viewMode] = useState<"list" | "category">(initialView || "category")
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const perPage = 7
-  const [categoriesMap, setCategoriesMap] = useState<Record<string | number, string>>({})
-  const [categories, setCategories] = useState<string[]>(["All"]) // used in the category <select>
-  const [allCategories, setAllCategories] = useState<string[]>([]) // used to build category groups
 
-  useEffect(() => {
-    fetchComplaints()
-    fetchCategories()
-  }, [])
+  useEffect(() => { fetchComplaints() }, [])
 
   const fetchComplaints = async () => {
     try {
-      console.log('Fetching complaints...')
-      // Try general complaints endpoint first as it's more likely to work
-      const response = await apiGet("/api/complaints/")
-      console.debug('API /api/complaints/ response:', response)
-      
-      if (!response || !Array.isArray(response)) {
-        console.error('Invalid response from general complaints API:', response)
-        setComplaints([])
-        return
-      }
-      
-      // Transform the response data to match the expected Complaint interface
-      const transformedComplaints = response.map((item: any) => {
-        const officerId = item.officer_id || null
-        console.log('Processing complaint:', item.id, 'officer_id:', officerId, 'is_assignd:', item.is_assignd)
-        
-        return {
-          id: item.id,
-          title: item.title,
-          Category: item.Category?.name || item.Category || 'Uncategorized',
-          Description: item.Description,
-          video_image: item.image_video || '',
-          image_video: item.image_video || '',
-          location_District: item.location_District || 'Not specified',
-          location_address: item.location_address || 'Not specified',
-          category_code: item.Category?.code || '',
-          category_name: item.Category?.name || item.Category || 'Uncategorized',
-          priority_level: item.priority_level || 'Medium',
-          status: item.status || 'Pending',
-          current_time: item.current_time || new Date().toISOString(),
-          is_assignd: item.is_assignd || false,
-          officer_id: officerId,
-          officer_name: item.officer_name || null
-        }
-      })
-      
-      console.log('Transformed complaints:', transformedComplaints)
-      setComplaints(transformedComplaints)
-      
-      if (transformedComplaints && transformedComplaints.length > 0) {
-        console.log('First complaint structure:', transformedComplaints[0])
-        console.log('First complaint id:', transformedComplaints[0].id)
-        console.log('First complaint type:', typeof transformedComplaints[0])
-        console.log('All complaint IDs:', transformedComplaints.map((c: any) => c.id))
-      }
+      const response = await apiGet("/api/department/complaints/")
+      if (!response || !Array.isArray(response)) { setComplaints([]); return }
+      const transformed: Complaint[] = response.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        Category: item.category || 'Uncategorized',
+        Description: item.description || '',
+        video_image: '',
+        image_video: '',
+        location_District: item.location || 'Not specified',
+        location_address: item.location || 'Not specified',
+        category_code: item.category || '',
+        category_name: item.category || 'Uncategorized',
+        priority_level: item.priority || 'Medium',
+        status: item.status || 'Pending',
+        current_time: item.submittedDate || new Date().toISOString(),
+        is_assignd: item.assignedOfficer !== 'Unassigned' && item.assignedOfficer !== null,
+        officer_id: item.assignedOfficer || null,
+        officer_name: item.assignedOfficer || null,
+      }))
+      setComplaints(transformed)
+      // Auto-expand all categories that have complaints
+      const cats = new Set(transformed.map(c => String(c.Category).toUpperCase()))
+      setExpandedCategories(cats)
     } catch (error) {
-      console.error('Error fetching general complaints:', error)
-      // Fallback to department endpoint if general endpoint fails
-      try {
-        console.log('Falling back to department endpoint...')
-        const fallbackResponse = await apiGet("/api/department/complaints/")
-        if (Array.isArray(fallbackResponse)) {
-          const transformedComplaints = fallbackResponse.map((item: any) => {
-          const officerId = item.assignedOfficer || null
-          console.log('Processing fallback complaint:', item.id, 'assignedOfficer:', officerId)
-          
-          return {
-            id: item.id,
-            title: item.title,
-            Category: item.category,
-            Description: item.description,
-            video_image: '', // Not provided by department endpoint
-            image_video: '', // Not provided by department endpoint
-            location_District: item.location || 'Not specified',
-            location_address: item.location || 'Not specified',
-            category_code: item.category,
-            category_name: item.category,
-            priority_level: item.priority || 'Medium',
-            status: item.status || 'Pending',
-            current_time: item.submittedDate || new Date().toISOString(),
-            is_assignd: officerId !== 'Unassigned' && officerId !== null,
-            officer_id: officerId,
-            officer_name: officerId // For department endpoint, assignedOfficer is already the name
-          }
-        })
-          setComplaints(transformedComplaints)
-        }
-      } catch (fallbackError) {
-        console.error('Error fetching fallback complaints:', fallbackError)
-        setComplaints([])
-      }
+      console.error('Error fetching complaints:', error)
+      setComplaints([])
     } finally {
       setLoading(false)
     }
   }
 
-  // Expose refresh function for parent components
   const refreshComplaints = () => {
     setLoading(true)
     fetchComplaints()
-    if (onAssignmentComplete) {
-      onAssignmentComplete()
-    }
   }
 
-  // Expose the refresh function via ref
-  useImperativeHandle(ref, () => ({
-    refreshComplaints
-  }), [onAssignmentComplete])
-
-  const fetchCategories = async () => {
-    try {
-      const res = await apiGet('/api/categories/')
-      console.debug('API /api/categories/ response:', res)
-      if (Array.isArray(res)) {
-          const map: Record<string | number, string> = {}
-          const codesSet = new Set<string>()
-          res.forEach((c: any) => {
-            // support lookup by id, name, and code (case-insensitive)
-            const codeVal = c.code ?? c.name ?? (c.id != null ? String(c.id) : undefined)
-            if (c.id != null && c.code != null) map[c.id] = c.code
-            if (c.name && c.code != null) map[c.name] = c.code
-            if (c.code) {
-              map[c.code] = c.code
-              map[String(c.code).toUpperCase()] = c.code
-              map[String(c.code).toLowerCase()] = c.code
-            }
-
-            if (codeVal != null) {
-              codesSet.add(String(codeVal).toUpperCase())
-            }
-          })
-          setCategoriesMap(map)
-
-          // Build sorted category arrays for the UI
-          const allCats = Array.from(codesSet)
-          allCats.sort()
-          setAllCategories(allCats)
-          setCategories(["All", ...allCats])
-      }
-    } catch (err) {
-      console.error('Failed to fetch categories', err)
-    }
-  }
+  useImperativeHandle(ref, () => ({ refreshComplaints }), [onAssignmentComplete])
 
   const toggleCategory = (category: string) => {
-    const newExpanded = new Set(expandedCategories)
-    if (newExpanded.has(category)) {
-      newExpanded.delete(category)
-    } else {
-      newExpanded.add(category)
-    }
-    setExpandedCategories(newExpanded)
+    const next = new Set(expandedCategories)
+    next.has(category) ? next.delete(category) : next.add(category)
+    setExpandedCategories(next)
   }
 
   const filtered = useMemo(() => {
     let result = complaints.filter((c) => {
-      // Handle different category field names from different endpoints
-      const rawCat = (c as any).Category || (c as any).category_name || (c as any).category || (c as any).category_code || 'Other'
-      let catKey: any = rawCat
-      if (typeof rawCat === 'object' && rawCat !== null) {
-        // Category may be serialized as an object
-        catKey = rawCat.code || rawCat.name || rawCat.id || String(rawCat)
-      }
-      if (typeof catKey === 'number' || (typeof catKey === 'string' && /^[0-9]+$/.test(catKey))) {
-        catKey = categoriesMap[catKey] || String(catKey)
-      } else if (typeof catKey === 'string') {
-        // prefer mapping, otherwise normalize
-        catKey = categoriesMap[catKey] || categoriesMap[String(catKey).toUpperCase()] || String(catKey)
-      }
-      const matchesSearch =
-        c.title.toLowerCase().includes(search.toLowerCase()) ||
-        c.id.toString().includes(search)
+      const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.id.toString().includes(search)
       const matchesStatus = statusFilter === "All" || c.status === statusFilter
       const matchesPriority = priorityFilter === "All" || c.priority_level === priorityFilter
-      const matchesCategory = categoryFilter === "All" || String(catKey).toUpperCase() === String(categoryFilter).toUpperCase()
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory
+      return matchesSearch && matchesStatus && matchesPriority
     })
-
     result.sort((a, b) => {
       const dateA = new Date(a.current_time).getTime()
       const dateB = new Date(b.current_time).getTime()
       return sortOrder === "latest" ? dateB - dateA : dateA - dateB
     })
-
     return result
-  }, [complaints, search, statusFilter, priorityFilter, categoryFilter, sortOrder])
+  }, [complaints, search, statusFilter, priorityFilter, sortOrder])
 
+  // Group by category — only categories that exist in the filtered complaints
   const groupedByCategory = useMemo(() => {
     const groups: Record<string, Complaint[]> = {}
-    console.log('Grouping complaints by category, total complaints:', filtered.length)
-    
-    filtered.forEach((complaint) => {
-      // Handle different category field names from different endpoints
-      const rawCat = (complaint as any).Category || (complaint as any).category_name || (complaint as any).category || (complaint as any).category_code || 'Other'
-      let key: any = rawCat
-      if (typeof rawCat === 'object' && rawCat !== null) {
-        key = rawCat.code || rawCat.name || rawCat.id || String(rawCat)
-      }
-      if (typeof key === 'number' || (typeof key === 'string' && /^[0-9]+$/.test(key))) {
-        key = categoriesMap[key] || String(key)
-      } else if (typeof key === 'string') {
-        key = categoriesMap[key] || categoriesMap[String(key).toUpperCase()] || String(key)
-      }
-      key = String(key).toUpperCase()
-      console.log('Complaint:', complaint.id, 'Raw category:', rawCat, 'Mapped key:', key)
-      
-      if (!groups[key]) {
-        groups[key] = []
-      }
-      groups[key].push(complaint)
+    filtered.forEach((c) => {
+      const key = String(c.Category).toUpperCase()
+      if (!groups[key]) groups[key] = []
+      groups[key].push(c)
     })
-    
-    console.log('Final groups:', groups)
     return groups
-  }, [filtered, categoriesMap])
-
-  // When category filter changes, show only that category in category view
-  const displayedCategories = useMemo(() => {
-    console.log('Computing displayedCategories, categoryFilter:', categoryFilter)
-    console.log('groupedByCategory keys:', Object.keys(groupedByCategory))
-    console.log('allCategories:', allCategories)
-    
-    if (categoryFilter !== "All") {
-      const filterKey = String(categoryFilter).toUpperCase()
-      console.log('Filtering for specific category:', filterKey)
-      return { [filterKey]: groupedByCategory[filterKey] || [] }
-    }
-    // Build the union of categories from the API and categories discovered from complaints
-    const apiCats = (allCategories || []).map((c) => String(c).toUpperCase())
-    const discoveredCats = Object.keys(groupedByCategory || {}).map((k) => String(k).toUpperCase())
-    const unionSet = new Set<string>([...apiCats, ...discoveredCats])
-
-    // If there are no categories at all, fall back to groupedByCategory directly
-    if (unionSet.size === 0) {
-      console.log('No categories from API or complaints; returning groupedByCategory')
-      return Object.keys(groupedByCategory).reduce((acc, k) => {
-        acc[k] = groupedByCategory[k]
-        return acc
-      }, {} as Record<string, Complaint[]>)
-    }
-
-    const allCats: Record<string, Complaint[]> = {}
-    unionSet.forEach((catKey) => {
-      allCats[catKey] = groupedByCategory[catKey] || []
-    })
-    console.log('All displayed categories (union of API and discovered):', allCats)
-    return allCats
-  }, [categoryFilter, groupedByCategory, allCategories])
+  }, [filtered])
 
   const totalPages = Math.ceil(filtered.length / perPage)
   const paginated = filtered.slice((page - 1) * perPage, page * perPage)
@@ -392,13 +158,9 @@ const AssignedComplaintsTable = forwardRef<{
     return (
       <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-12 text-center">
         <p className="text-slate-600">Loading complaints...</p>
-        <p className="text-xs text-slate-400 mt-2">Debug: Loading state = {loading.toString()}</p>
       </div>
     )
   }
-
-  // Debug: Show current state
-  console.log('Current state - loading:', loading, 'complaints count:', complaints.length, 'filtered count:', filtered.length)
 
   return (
     <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm">
@@ -407,76 +169,53 @@ const AssignedComplaintsTable = forwardRef<{
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h3 className="text-lg font-semibold text-slate-800">Complaint Queue</h3>
-            <p className="text-sm text-slate-500">
-              {filtered.length} complaints assigned to department
-            </p>
+            <p className="text-sm text-slate-500">{filtered.length} complaints in your department</p>
           </div>
-     
         </div>
-
-        {/* Filter row */}
         <div className="flex flex-wrap gap-3">
-          {/* Search */}
           <div className="flex items-center gap-2 bg-[#f1f5f9] px-3 py-2 rounded-lg border border-[#e2e8f0] flex-1 min-w-[220px]">
             <Search className="w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by Complaint ID or Title..."
+              placeholder="Search by ID or Title..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
               className="bg-transparent text-sm outline-none w-full text-slate-700 placeholder:text-slate-400"
             />
           </div>
-
-          {/* Status */}
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-slate-400" />
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-              className="text-sm border border-[#e2e8f0] rounded-lg px-3 py-2 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-[#1e40af]/20"
+              className="text-sm border border-[#e2e8f0] rounded-lg px-3 py-2 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-[#1e3a5f]/20"
             >
               <option value="All">All Status</option>
               <option value="Pending">Pending</option>
-              <option value="in-progress">In Progress</option>
-              <option value="resolved">Resolved</option>
+              <option value="In Process">In Progress</option>
+              <option value="Completed">Completed</option>
             </select>
           </div>
-
-          {/* Priority */}
           <select
             value={priorityFilter}
             onChange={(e) => { setPriorityFilter(e.target.value); setPage(1) }}
-            className="text-sm border border-[#e2e8f0] rounded-lg px-3 py-2 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-[#1e40af]/20"
+            className="text-sm border border-[#e2e8f0] rounded-lg px-3 py-2 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-[#1e3a5f]/20"
           >
             <option value="All">All Priority</option>
             <option value="High">High</option>
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
-
-          {/* Category */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1) }}
-            className="text-sm border border-[#e2e8f0] rounded-lg px-3 py-2 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-[#1e40af]/20"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>{cat === "All" ? "All Categories" : cat}</option>
-            ))}
-          </select>
         </div>
       </div>
 
-      {/* Content - Category View or List View */}
+      {/* Category View */}
       {viewMode === "category" ? (
         <div className="p-5 space-y-4">
-          {Object.entries(displayedCategories).length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              No complaints found in selected category.
-            </div>
+          {Object.keys(groupedByCategory).length === 0 ? (
+            <div className="text-center py-12 text-slate-400">No complaints found for your department.</div>
           ) : (
-            Object.entries(displayedCategories).map(([category, categoryComplaints]) => (
+            Object.entries(groupedByCategory).map(([category, categoryComplaints]) => (
               <div key={category} className="border border-[#e2e8f0] rounded-lg overflow-hidden">
                 <button
                   onClick={() => toggleCategory(category)}
@@ -484,24 +223,22 @@ const AssignedComplaintsTable = forwardRef<{
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-slate-800">{category}</span>
-                    <span className="text-xs px-2 py-1 bg-[#1e40af] text-white rounded-full">
+                    <span className="text-xs px-2 py-1 bg-slate-700 text-white rounded-full">
                       {categoryComplaints.length}
                     </span>
                   </div>
-                  {expandedCategories.has(category) ? (
-                    <ChevronUp className="w-4 h-4 text-slate-600" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-600" />
-                  )}
+                  {expandedCategories.has(category)
+                    ? <ChevronUp className="w-4 h-4 text-slate-600" />
+                    : <ChevronDown className="w-4 h-4 text-slate-600" />}
                 </button>
                 {expandedCategories.has(category) && (
                   <div className="divide-y divide-[#e2e8f0]">
                     {categoryComplaints.map((c) => (
-                      <div key={c.id} className="p-4 hover:bg-blue-50/40 transition-colors">
+                      <div key={c.id} className="p-4 hover:bg-slate-50 transition-colors">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs font-mono font-semibold text-[#1e40af]">CVT-{c.id}</span>
+                              <span className="text-xs font-mono font-semibold text-slate-600">CVT-{c.id}</span>
                               <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${priorityColors[c.priority_level]}`}>
                                 {c.priority_level}
                               </span>
@@ -517,11 +254,11 @@ const AssignedComplaintsTable = forwardRef<{
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
-                            <ViewDetailsButton complaint={loading ? null : c} className="p-2 text-[#3b82f6] hover:bg-blue-50 rounded transition-colors" />
+                            <ViewDetailsButton complaint={c} />
                             {c.officer_name && c.officer_name !== "Unassigned" && c.officer_name !== "null" && c.officer_name !== "" ? (
                               <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold">Assigned</span>
                             ) : (
-                              <button onClick={() => onAssign(c)} className="p-2 text-[#7c3aed] hover:bg-violet-50 rounded transition-colors">
+                              <button onClick={() => onAssign(c)} className="p-2 text-teal-600 hover:bg-teal-50 rounded transition-colors">
                                 <UserPlus className="w-4 h-4" />
                               </button>
                             )}
@@ -537,155 +274,108 @@ const AssignedComplaintsTable = forwardRef<{
         </div>
       ) : (
         <>
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[#e2e8f0] bg-[#f1f5f9]">
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">ID</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">Title</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden md:table-cell">Category</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden lg:table-cell">District</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden xl:table-cell">Location</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden xl:table-cell">Citizen</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden lg:table-cell">Officer</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">Priority</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden lg:table-cell">SLA Timer</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden md:table-cell">Date</th>
-              <th className="px-4 py-3 text-center font-semibold text-slate-600 text-xs uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#e2e8f0]">
-            {paginated.map((c) => (
-              <tr key={c.id} className="hover:bg-blue-50/40 transition-colors group">
-                <td className="px-4 py-3.5 font-mono text-[#1e40af] font-semibold text-xs">{c.id}</td>
-                <td className="px-4 py-3.5 text-slate-800 font-medium max-w-[180px] truncate">{c.title}</td>
-                <td className="px-4 py-3.5 text-slate-600 hidden md:table-cell">{c.Category}</td>
-                <td className="px-4 py-3.5 text-slate-600 hidden lg:table-cell">{c.location_District}</td>
-                <td className="px-4 py-3.5 text-slate-500 text-xs hidden xl:table-cell max-w-[140px] truncate">{c.location_address}</td>
-                <td className="px-4 py-3.5 hidden lg:table-cell">
-                  <span className={!c.officer_name || c.officer_name === "Unassigned" || c.officer_name === "null" || c.officer_name === "" ? "text-[#dc2626] italic text-xs" : "text-slate-600 text-xs"}>
-                    {!c.officer_name || c.officer_name === "Unassigned" || c.officer_name === "null" || c.officer_name === "" ? "Not Assigned" : c.officer_name}
-                  </span>
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className={`text-[11px] px-2 py-1 rounded-full border font-semibold ${priorityColors[c.priority_level]}`}>
-                    {c.priority_level}
-                  </span>
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold ${statusColors[c.status]}`}>
-                    {c.status}
-                  </span>
-                </td>
-                {/* <td className="px-4 py-3.5 hidden lg:table-cell">
-                  <SlaBar percent={c.slaPercent} remaining={c.slaRemaining} />
-                </td> */}
-                <td className="px-4 py-3.5 text-slate-500 text-xs hidden md:table-cell">{c.current_time}</td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center justify-center gap-0.5">
-                    <ViewDetailsButton complaint={c} />
-                    
-                    {/* Simple test button */}
-                    <button
-                      onClick={() => {
-                        console.log('Test clicked - Complaint ID:', c.id)
-                        alert(`Test: Complaint ID is ${c.id}`)
-                      }}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Test Click"
-                    >
-                      Test
-                    </button>
-                    
-                    {/* Direct navigation test */}
-                    <button
-                      onClick={() => {
-                        console.log('Direct navigation - Complaint ID:', c.id)
-                        window.location.href = `/department/complaint-details/${c.id}`
-                      }}
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
-                      title="Direct Navigation Test"
-                    >
-                      Go
-                    </button>
-                    
-                    {c.officer_name && c.officer_name !== "Unassigned" && c.officer_name !== "null" && c.officer_name !== "" ? (
-                      <button title="Assigned" disabled className="p-1.5 text-slate-400 rounded transition-colors cursor-not-allowed" aria-disabled>
-                        <span className="text-xs font-medium">Assigned</span>
-                      </button>
-                    ) : (
-                      <button title="Assign Officer" onClick={() => onAssign(c)} className="p-1.5 text-[#7c3aed] hover:bg-violet-50 rounded transition-colors">
-                        <UserPlus className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button title="Update Status" className="p-1.5 text-[#16a34a] hover:bg-green-50 rounded transition-colors">
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
-                    <button title="Add Remarks" className="p-1.5 text-slate-500 hover:bg-slate-50 rounded transition-colors">
-                      <MessageSquare className="w-3.5 h-3.5" />
-                    </button>
-                    <button title="Mark Resolved" className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button title="Escalate" className="p-1.5 text-[#dc2626] hover:bg-red-50 rounded transition-colors">
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                    <button title="Upload Proof" className="p-1.5 text-slate-400 hover:bg-slate-50 rounded transition-colors">
-                      <Upload className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {paginated.length === 0 && (
-              <tr>
-                <td colSpan={12} className="px-5 py-12 text-center text-slate-400">
-                  No complaints match your filters.
-                  <p className="text-xs mt-2">Debug: Total complaints: {complaints.length}, Filtered: {filtered.length}, Paginated: {paginated.length}</p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-[#e2e8f0]">
-          <p className="text-xs text-slate-500">
-            Showing {(page - 1) * perPage + 1} - {Math.min(page * perPage, filtered.length)} of {filtered.length}
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4 text-slate-600" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                onClick={() => setPage(n)}
-                className={`w-8 h-8 rounded text-xs font-medium transition-colors ${
-                  n === page ? "bg-[#1e40af] text-white" : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="w-4 h-4 text-slate-600" />
-            </button>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#e2e8f0] bg-[#f1f5f9]">
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">ID</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">Title</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden md:table-cell">Category</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden lg:table-cell">Location</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden lg:table-cell">Officer</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">Priority</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider hidden md:table-cell">Date</th>
+                  <th className="px-4 py-3 text-center font-semibold text-slate-600 text-xs uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e2e8f0]">
+                {paginated.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3.5 font-mono text-slate-600 font-semibold text-xs">{c.id}</td>
+                    <td className="px-4 py-3.5 text-slate-800 font-medium max-w-[180px] truncate">{c.title}</td>
+                    <td className="px-4 py-3.5 text-slate-600 hidden md:table-cell">{c.Category}</td>
+                    <td className="px-4 py-3.5 text-slate-500 text-xs hidden lg:table-cell max-w-[140px] truncate">{c.location_address}</td>
+                    <td className="px-4 py-3.5 hidden lg:table-cell">
+                      <span className={!c.officer_name || c.officer_name === "Unassigned" || c.officer_name === "null" || c.officer_name === "" ? "text-[#dc2626] italic text-xs" : "text-slate-600 text-xs"}>
+                        {!c.officer_name || c.officer_name === "Unassigned" || c.officer_name === "null" || c.officer_name === "" ? "Not Assigned" : c.officer_name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className={`text-[11px] px-2 py-1 rounded-full border font-semibold ${priorityColors[c.priority_level]}`}>
+                        {c.priority_level}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold ${statusColors[c.status]}`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-slate-500 text-xs hidden md:table-cell">{c.current_time}</td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center justify-center gap-0.5">
+                        <ViewDetailsButton complaint={c} />
+                        {c.officer_name && c.officer_name !== "Unassigned" && c.officer_name !== "null" && c.officer_name !== "" ? (
+                          <button title="Assigned" disabled className="p-1.5 text-slate-400 rounded cursor-not-allowed">
+                            <span className="text-xs font-medium">Assigned</span>
+                          </button>
+                        ) : (
+                          <button title="Assign Officer" onClick={() => onAssign(c)} className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition-colors">
+                            <UserPlus className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button title="Update Status" className="p-1.5 text-[#16a34a] hover:bg-green-50 rounded transition-colors">
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                        <button title="Add Remarks" className="p-1.5 text-slate-500 hover:bg-slate-50 rounded transition-colors">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </button>
+                        <button title="Mark Resolved" className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button title="Escalate" className="p-1.5 text-[#dc2626] hover:bg-red-50 rounded transition-colors">
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </button>
+                        <button title="Upload Proof" className="p-1.5 text-slate-400 hover:bg-slate-50 rounded transition-colors">
+                          <Upload className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {paginated.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-5 py-12 text-center text-slate-400">
+                      No complaints match your filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-[#e2e8f0]">
+              <p className="text-xs text-slate-500">
+                Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                  className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <ChevronLeft className="w-4 h-4 text-slate-600" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <button key={n} onClick={() => setPage(n)}
+                    className={`w-8 h-8 rounded text-xs font-medium transition-colors ${n === page ? "bg-slate-700 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+                    {n}
+                  </button>
+                ))}
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className="p-1.5 rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <ChevronRight className="w-4 h-4 text-slate-600" />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -1,16 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Menu, X, User } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Menu, X, User, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+  const profileRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -42,6 +45,26 @@ export default function Header() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setIsProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user')
+    setIsLoggedIn(false)
+    setUser(null)
+    setIsProfileOpen(false)
+    router.push('/login')
+  }
+
   const getNavItems = () => {
     if (!isLoggedIn || !user) {
       // Not logged in - show basic navigation
@@ -58,9 +81,10 @@ export default function Header() {
     switch (userRole) {
       case 'Civic-User':
         return [
+          { label: 'Home', href: '/' },
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'My Complaints', href: '/my-complaints' },
-          { label: 'Raise Complaint', href: '/raise-complaint' },
+          { label: 'Contact Us', href: '/contact' },
         ]
       case 'Department-User':
         return [
@@ -80,9 +104,6 @@ export default function Header() {
       case 'Admin-User':
         return [
           { label: 'Dashboard', href: '/admin' },
-          { label: 'Complaints', href: '/admin/complaints' },
-          { label: 'Users', href: '/admin/users' },
-          { label: 'Categories', href: '/admin/categories' },
         ]
       default:
         return []
@@ -132,24 +153,43 @@ export default function Header() {
             {!isLoggedIn ? (
               <>
                 <Link href="/login">
-                  <Button variant="outline" size="sm">
-                    Login
-                  </Button>
+                  <Button variant="outline" size="sm">Login</Button>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="bg-primary hover:bg-primary/90">
-                    Sign Up
-                  </Button>
+                  <Button size="sm" className="bg-primary hover:bg-primary/90">Sign Up</Button>
                 </Link>
               </>
             ) : (
-              <>
-                <Link href="/profile" className="flex items-center justify-center w-10 h-10 bg-primary rounded-full hover:bg-primary/90 transition-colors">
-                  <User className="w-5 h-5 text-white" />
-                </Link>
-              </>
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex items-center justify-center w-10 h-10 bg-primary rounded-full hover:bg-primary/90 transition-colors"
+                >
+                  <span className="text-white font-semibold text-sm">
+                    {(user?.username || user?.first_name || 'U').charAt(0).toUpperCase()}
+                  </span>
+                </button>
+                {isProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-44 bg-white border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                    >
+                      <User className="w-4 h-4" /> Profile
+                    </Link>
+                    <div className="border-t border-border" />
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
-            
+
             {/* Show Raise Complaint button only for Civic Users */}
             {isLoggedIn && user && (user.User_Role === 'Civic-User' || user.role === 'Civic-User') && (
               <Link href="/raise-complaint">
@@ -205,9 +245,19 @@ export default function Header() {
                 </>
               ) : (
                 <>
-                  <Link href="/profile" className="flex items-center justify-center w-10 h-10 bg-primary rounded-full hover:bg-primary/90 transition-colors">
-                    <User className="w-5 h-5 text-white" />
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:text-primary"
+                  >
+                    <User className="w-4 h-4" /> Profile
                   </Link>
+                  <button
+                    onClick={() => { setIsMenuOpen(false); handleLogout() }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:text-red-700"
+                  >
+                    <LogOut className="w-4 h-4" /> Logout
+                  </button>
                 </>
               )}
               

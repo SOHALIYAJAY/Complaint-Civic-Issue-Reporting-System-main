@@ -143,7 +143,7 @@ export default function StatisticsCards() {
       icon: <AlertCircle className="w-5 h-5" />,
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-600',
-      borderColor: 'border-blue-200'
+      borderColor: 'border-t-blue-400'
     },
     {
       label: 'Resolved',
@@ -151,7 +151,7 @@ export default function StatisticsCards() {
       icon: <CheckCircle className="w-5 h-5" />,
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
-      borderColor: 'border-green-200'
+      borderColor: 'border-t-green-400'
     },
     {
       label: 'Pending',
@@ -159,7 +159,7 @@ export default function StatisticsCards() {
       icon: <Clock className="w-5 h-5" />,
       bgColor: 'bg-yellow-50',
       textColor: 'text-yellow-600',
-      borderColor: 'border-yellow-200'
+      borderColor: 'border-t-yellow-400'
     },
     {
       label: 'In Progress',
@@ -167,7 +167,7 @@ export default function StatisticsCards() {
       icon: <TrendingUp className="w-5 h-5" />,
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-600',
-      borderColor: 'border-purple-200'
+      borderColor: 'border-t-purple-400'
     }
   ] : []
 
@@ -196,19 +196,12 @@ export default function StatisticsCards() {
     )
   }
 
-  const normalizeBorderColor = (b: string) => {
-    if (!b) return ''
-    if (b.startsWith('border-t-') || b.startsWith('border-t[') || b.startsWith('border-t')) return `border-t-4 ${b}`
-    if (b.startsWith('border-')) return `border-t-4 border-t-${b.slice('border-'.length)}`
-    return `border-t-4 border-t-${b}`
-  }
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {statCards.map((card, index) => (
         <div
           key={card.label}
-          className={`bg-white rounded-xl border border-gray-200 ${normalizeBorderColor(card.borderColor)} p-6 hover:shadow-lg transition-all duration-300 hover:scale-105 h-full`}
+          className={`bg-white rounded-xl border border-gray-200 border-t-4 ${card.borderColor} p-6 hover:shadow-lg transition-all duration-300 hover:scale-105 h-full`}
         >
           <div className={`${card.bgColor} ${card.textColor} w-12 h-12 rounded-lg flex items-center justify-center mb-4`}>
             {card.icon}

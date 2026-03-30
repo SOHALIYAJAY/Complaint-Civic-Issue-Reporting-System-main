@@ -1,5 +1,3 @@
-from ast import mod
-from pyexpat import model
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -17,8 +15,8 @@ class Complaint(models.Model):
         )
     CHOICE_STATUS=(
         ('Pending','Pending'),
-        ('in-progress','In Progress'),
-        ('resolved','Resolved')
+        ('In Process','In Process'),
+        ('Completed','Completed')
         )
     
     title=models.CharField(max_length=100)
@@ -33,6 +31,9 @@ class Complaint(models.Model):
     priority_level=models.CharField(max_length=20, choices=CHOICE_PRIORITY, default='Medium')
     status=models.CharField(max_length=20, choices=CHOICE_STATUS, default='Pending')
     current_time=models.DateTimeField(default=timezone.now)
+    resolved_time=models.DateTimeField(null=True, blank=True)
+    updated_at=models.DateTimeField(null=True, blank=True)
+    remarks=models.TextField(blank=True, default='')
     is_assignd=models.BooleanField(default=False)
     
     def __str__(self):
@@ -54,6 +55,25 @@ class ComplaintAssignment(models.Model):
     
     def __str__(self):
         return f"{self.complaint.title} -> {self.officer.name}"
+
+
+class ComplaintStatusHistory(models.Model):
+    STATUS_CHOICES = (
+        ('Pending', 'Pending'),
+        ('In Process', 'In Process'),
+        ('Completed', 'Completed'),
+    )
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name='status_history')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    changed_by = models.ForeignKey(Officer, null=True, blank=True, on_delete=models.SET_NULL)
+    remarks = models.TextField(blank=True, default='')
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"{self.complaint.title} → {self.status} at {self.timestamp}"
 
 
 class ComplaintCategory(models.Model):

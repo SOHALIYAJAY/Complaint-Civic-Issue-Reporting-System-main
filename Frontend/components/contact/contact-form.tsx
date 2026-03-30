@@ -1,19 +1,32 @@
 'use client'
 
-import { useState } from 'react'
-import { Send, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Send, CheckCircle, Mail } from 'lucide-react'
 
 export default function ContactForm() {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     full_name: '',
-    email: '',
     subject: 'general',
     message: '',
   })
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.email) { setUserEmail(parsed.email); return }
+      }
+      // fallback: some apps store email directly
+      const email = localStorage.getItem('user_email')
+      if (email && email !== 'undefined' && email !== 'null') setUserEmail(email)
+    } catch {}
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -23,14 +36,22 @@ export default function ContactForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
+      const token = localStorage.getItem('access_token')
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token && token !== 'undefined' && token !== 'null') headers['Authorization'] = `Bearer ${token}`
+
+      const payload = {
+        full_name: formData.full_name,
+        email: userEmail || '',
+        subject: formData.subject,
+        message: formData.message,
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/contact/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers,
+        body: JSON.stringify(payload),
       })
 
       const data = await response.json()
@@ -38,26 +59,17 @@ export default function ContactForm() {
       if (response.ok && data.success) {
         setSubmitted(true)
         setTimeout(() => {
-          setFormData({
-            full_name: '',
-            email: '',
-            subject: 'general',
-            message: '',
-          })
+          setFormData({ full_name: '', subject: 'general', message: '' })
           setSubmitted(false)
-        }, 3000)
+        }, 4000)
       } else {
-        // Handle validation errors or server errors
         if (data.errors) {
-          // Show specific validation errors
-          const errorMessages = Object.values(data.errors).flat()
-          alert(`Please fix the following errors:\n${errorMessages.join('\n')}`)
+          alert(`Please fix the following errors:\n${Object.values(data.errors).flat().join('\n')}`)
         } else {
           alert(data.message || 'Failed to send message. Please try again.')
         }
       }
-    } catch (error) {
-      console.error('Error:', error)
+    } catch {
       alert('Network error. Please check your connection and try again.')
     } finally {
       setLoading(false)
@@ -70,12 +82,14 @@ export default function ContactForm() {
         <div className="text-center">
           <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
           <h3 className="text-2xl font-bold text-foreground mb-2">Thank You!</h3>
-          <p className="text-muted-foreground mb-4">Your message has been sent successfully.</p>
+          <p className="text-muted-foreground mb-1">Your message has been sent successfully.</p>
           <p className="text-sm text-muted-foreground">Our team will get back to you within 24 hours.</p>
         </div>
       </div>
     )
   }
+
+  const inputClass = "w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
 
   return (
     <section className="py-20 px-4 bg-primary/5">
@@ -86,6 +100,16 @@ export default function ContactForm() {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-8 shadow-lg">
+          {/* Email indicator for logged-in users */}
+          {userEmail && (
+            <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-lg bg-primary/5 border border-primary/20">
+              <Mail className="w-4 h-4 text-primary shrink-0" />
+              <p className="text-sm text-foreground">
+                Replying to <span className="font-semibold text-primary">{userEmail}</span>
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Full Name */}
             <div>
@@ -99,25 +123,8 @@ export default function ContactForm() {
                 value={formData.full_name}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                className={inputClass}
                 placeholder="Your full name"
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">
-                Email Address *
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                placeholder="your.email@example.com"
               />
             </div>
 
@@ -131,10 +138,9 @@ export default function ContactForm() {
                 name="subject"
                 value={formData.subject}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                className={inputClass}
               >
                 <option value="general">General Inquiry</option>
-                {/* <option value="technical">Technical Support</option> */}
                 <option value="complaint">Complaint Report</option>
                 <option value="feedback">Feedback</option>
               </select>
@@ -152,23 +158,15 @@ export default function ContactForm() {
                 onChange={handleChange}
                 required
                 rows={6}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
+                className={`${inputClass} resize-none`}
                 placeholder="Tell us more about your inquiry..."
-              ></textarea>
+              />
             </div>
 
-            {/* File attachment info */}
-            <div className="p-4 rounded-lg border border-dashed border-border bg-background/50">
-              <p className="text-sm text-muted-foreground">
-                💾 To attach files, please contact us directly or use the file upload feature after logging in.
-              </p>
-            </div>
-
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5" />
               {loading ? 'Sending...' : 'Send Message'}

@@ -8,15 +8,21 @@ import {
   Activity, FileText, MapPin, Calendar, Clock, Search, Filter,
   Download, Upload, RefreshCw, X, Check, AlertCircle
 } from "lucide-react"
+import ChangePasswordModal from '@/components/profile/change-password-modal'
 
 const tabs = [
   { id: "profile", label: "Profile", icon: User },
+  { id: "security", label: "Security", icon: Lock },
   { id: "query", label: "Query", icon: FileText },
   { id: "system", label: "System", icon: Settings },
 ]
 
+const filteredLogs: any[] = []
+function handleBackup(_type: string) {}
+
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState("profile")
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -360,6 +366,37 @@ export default function AdminSettingsPage() {
 
         {/* Content */}
         <div className="flex-1 space-y-5">
+          {/* SECURITY TAB */}
+          {activeTab === "security" && (
+            <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm p-5">
+              <h2 className="text-base font-semibold text-slate-800 mb-1 pb-3 border-b border-[#e2e8f0]">Security Settings</h2>
+              <div className="mt-4 flex items-center justify-between p-4 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-[#1e40af]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Change Password</p>
+                    <p className="text-xs text-slate-500">Update your admin account password</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-4 py-2 bg-[#1e40af] text-white text-sm font-medium rounded-lg hover:bg-[#1e3a8a] transition-colors"
+                >
+                  Change Password
+                </button>
+              </div>
+              <div className="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-100 flex items-start gap-3">
+                <Shield className="w-5 h-5 text-[#1e40af] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-[#1e40af]">Security Tip</p>
+                  <p className="text-xs text-slate-600 mt-0.5">Use a strong password with at least 8 characters, including uppercase, lowercase, numbers, and symbols.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* PROFILE TAB */}
           {activeTab === "profile" && (
             <>
@@ -712,6 +749,23 @@ export default function AdminSettingsPage() {
           )}
 
    
+          {/* SAVE BUTTON for system tab */}
+          {activeTab === "system" && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => handleSave("system")}
+                disabled={loading}
+                className="px-6 py-2 bg-[#1e40af] text-white text-sm font-medium rounded-lg hover:bg-[#1e3a8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {loading ? (
+                  <><RefreshCw className="w-4 h-4 animate-spin" />Saving...</>
+                ) : (
+                  <><Save className="w-4 h-4" />Save Settings</>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* ACTIVITY LOGS TAB */}
           {activeTab === "logs" && (
             <>
@@ -839,6 +893,7 @@ export default function AdminSettingsPage() {
 
         </div>
       </div>
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </div>
   )
 }

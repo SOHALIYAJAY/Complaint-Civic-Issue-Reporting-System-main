@@ -1,48 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Building2, Users, FileText, Clock, CheckCircle, AlertCircle, TrendingUp, Mail, Phone, Calendar, Activity, User, BarChart3, PieChart as PieChartIcon, TrendingDown } from "lucide-react"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts'
-import api from '@/lib/axios'
-import RequireAuth from '@/components/auth/RequireAuth'
+import {
+  Building2, Users, FileText, CheckCircle2, Clock, TrendingUp,
+  Mail, Phone, User, RefreshCw, AlertTriangle, Activity, Shield
+} from "lucide-react"
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid
+} from "recharts"
+import api from "@/lib/axios"
 
-// Types
-interface HeadOfficer {
-  id: number
-  name: string
-  email: string
-  phone: string
-  avatar: string
-}
-
-interface DepartmentStatistics {
+interface DeptStats {
   total_complaints: number
   pending_complaints: number
   in_progress_complaints: number
   resolved_complaints: number
   resolution_rate: number
-  avg_resolution_time: number
-  sla_compliance: number
-}
-
-interface DepartmentOfficers {
-  total: number
-  active: number
-  inactive: number
-}
-
-interface RecentActivity {
-  id: string
-  title: string
-  status: string
-  priority: string
-  date: string
-  citizen: string
-}
-
-interface MonthlyTrend {
-  month: string
-  complaints: number
 }
 
 interface Department {
@@ -52,378 +26,290 @@ interface Department {
   description: string
   contact_email: string
   contact_phone: string
-  head_officer: HeadOfficer | null
-  statistics: DepartmentStatistics
-  officers: DepartmentOfficers
-  recent_activity: RecentActivity[]
-  monthly_trends: MonthlyTrend[]
+  head_officer: { id: number; name: string; email: string } | null
+  officers: { total: number; active: number; inactive: number }
+  statistics: DeptStats
   created_at: string | null
 }
 
-interface DepartmentsOverview {
-  departments: Department[]
-  overview: {
-    total_departments: number
-    total_complaints: number
-    total_resolved: number
-    overall_resolution_rate: number
-    total_officers: number
-    total_pending: number
-  }
+interface Overview {
+  total_departments: number
+  total_complaints: number
+  total_resolved: number
+  overall_resolution_rate: number
+  total_officers: number
 }
 
-// Constants
-const STATUS_COLORS = {
-  'pending': '#F59E0B',
-  'in-progress': '#3B82F6',
-  'resolved': '#10B981',
-  'default': '#6B7280'
-}
+const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b"]
 
-const PRIORITY_COLORS = {
-  'high': '#EF4444',
-  'medium': '#F59E0B',
-  'low': '#10B981',
-  'default': '#6B7280'
+function StatCard({ label, value, icon, color }: { label: string; value: number | string; icon: React.ReactNode; color: string }) {
+  return (
+    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-t-4 ${color}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+        </div>
+        <div className="p-3 bg-gray-50 rounded-xl">{icon}</div>
+      </div>
+    </div>
+  )
 }
-
-const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 
 export default function DepartmentsOverviewPage() {
-  const [data, setData] = useState<DepartmentsOverview | null>(null)
+  const [dept, setDept] = useState<Department | null>(null)
+  const [overview, setOverview] = useState<Overview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null)
 
-  useEffect(() => {
-    fetchDepartmentsOverview()
-  }, [])
-
-  const fetchDepartmentsOverview = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true)
       setError(null)
-      
-      const response = await api.get('/api/departments/overview/')
-      setData(response.data)
+      const res = await api.get("/api/departments/overview/")
+      const data = res.data
+      setOverview(data.overview)
+      if (data.departments?.length > 0) setDept(data.departments[0])
     } catch (err: any) {
-      console.error('Error fetching departments overview:', err)
-      setError(err.response?.data?.message || 'Failed to load departments data')
+      setError(err.response?.data?.message || err.message || "Failed to load data")
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusColor = (status: string) => STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.default
-  const getPriorityColor = (priority: string) => PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.default
+  useEffect(() => { fetchData() }, [])
 
-  // Loading state
-  if (loading) {
-    return (
-      <RequireAuth role={['Admin-User', 'Department-User']}>
-        <div className="p-6">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-500">Loading departments overview...</p>
-          </div>
+  if (loading) return (
+    <div className="p-6 space-y-4">
+      {[1,2,3].map(i => (
+        <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse h-28">
+          <div className="h-4 bg-gray-200 rounded w-1/3 mb-3" />
+          <div className="h-8 bg-gray-100 rounded w-1/2" />
         </div>
-      </RequireAuth>
-    )
-  }
+      ))}
+    </div>
+  )
 
-  // Error state
-  if (error) {
-    return (
-      <RequireAuth role={['Admin-User', 'Department-User']}>
-        <div className="p-6">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <div>
-                <h3 className="text-red-800 font-medium">Error loading data</h3>
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            </div>
-            <button
-              onClick={fetchDepartmentsOverview}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </RequireAuth>
-    )
-  }
-
-  // Empty state
-  if (!data || !data.departments.length) {
-    return (
-      <RequireAuth role={['Admin-User', 'Department-User']}>
-        <div className="p-6">
-          <div className="text-center py-12">
-            <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No departments found</h3>
-            <p className="text-gray-500">There are no departments to display at the moment.</p>
-          </div>
-        </div>
-      </RequireAuth>
-    )
-  }
-
-  return (
-    <RequireAuth role={['Admin-User', 'Department-User']}>
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Departments Overview</h1>
-            <p className="text-gray-600 mt-1">Comprehensive view of all departments and their performance</p>
-          </div>
-          <button
-            onClick={fetchDepartmentsOverview}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Activity className="w-4 h-4" />
-            Refresh
+  if (error) return (
+    <div className="p-6">
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-4">
+        <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="font-semibold text-red-800">Failed to load overview</p>
+          <p className="text-sm text-red-600 mt-1">{error}</p>
+          <button onClick={fetchData} className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700">
+            Retry
           </button>
         </div>
+      </div>
+    </div>
+  )
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Complaints</p>
-                <p className="text-2xl font-bold text-gray-900">{data.overview.total_complaints}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-blue-600" />
-              </div>
+  if (!dept) return (
+    <div className="p-6 text-center py-20">
+      <Building2 className="w-14 h-14 text-gray-300 mx-auto mb-3" />
+      <p className="text-gray-500">No department assigned to your account.</p>
+    </div>
+  )
+
+  const pieData = [
+    { name: "Resolved",    value: dept.statistics.resolved_complaints,    color: PIE_COLORS[0] },
+    { name: "In Progress", value: dept.statistics.in_progress_complaints, color: PIE_COLORS[1] },
+    { name: "Pending",     value: dept.statistics.pending_complaints,     color: PIE_COLORS[2] },
+  ]
+
+  const barData = [
+    { name: "Total",    value: dept.officers.total,    fill: "#6366f1" },
+    { name: "Active",   value: dept.officers.active,   fill: "#10b981" },
+    { name: "Inactive", value: dept.officers.inactive, fill: "#94a3b8" },
+  ]
+
+  return (
+    <div className="p-4 lg:p-6 space-y-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Department Overview</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Your department's performance at a glance</p>
+        </div>
+        <button onClick={fetchData}
+          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+          <RefreshCw className="w-4 h-4" /> Refresh
+        </button>
+      </div>
+
+      {/* Department Identity Banner */}
+      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+              <Building2 className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <p className="text-xs text-indigo-200 uppercase tracking-widest mb-0.5">Your Department</p>
+              <h2 className="text-xl font-bold">{dept.name}</h2>
+              <p className="text-sm text-indigo-200">{dept.category}</p>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Resolved Complaints</p>
-                <p className="text-2xl font-bold text-gray-900">{data.overview.total_resolved}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
+          <div className="flex flex-wrap gap-8 text-sm">
+            <div>
+              <p className="text-indigo-200 text-xs mb-0.5">Head Officer</p>
+              <p className="font-semibold">{dept.head_officer?.name || "Not Assigned"}</p>
+            </div>
+            <div>
+              <p className="text-indigo-200 text-xs mb-0.5">Contact Email</p>
+              <p className="font-semibold">{dept.contact_email || "—"}</p>
+            </div>
+            <div>
+              <p className="text-indigo-200 text-xs mb-0.5">Phone</p>
+              <p className="font-semibold">{dept.contact_phone || "—"}</p>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Officers</p>
-                <p className="text-2xl font-bold text-gray-900">{data.overview.total_officers}</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
+        </div>
+        {dept.description && (
+          <p className="mt-4 text-sm text-indigo-100 border-t border-white/20 pt-4">{dept.description}</p>
+        )}
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Complaints" value={dept.statistics.total_complaints}
+          icon={<FileText className="w-5 h-5 text-indigo-600" />} color="border-t-indigo-500" />
+        <StatCard label="Resolved" value={dept.statistics.resolved_complaints}
+          icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />} color="border-t-emerald-500" />
+        <StatCard label="Pending" value={dept.statistics.pending_complaints}
+          icon={<Clock className="w-5 h-5 text-amber-600" />} color="border-t-amber-500" />
+        <StatCard label="In Progress" value={dept.statistics.in_progress_complaints}
+          icon={<Activity className="w-5 h-5 text-blue-600" />} color="border-t-blue-500" />
+      </div>
+
+      {/* Resolution Rate Bar */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-600" />
+            <span className="text-sm font-semibold text-gray-800">Resolution Rate</span>
+          </div>
+          <span className={`text-sm font-bold ${dept.statistics.resolution_rate >= 70 ? "text-emerald-600" : dept.statistics.resolution_rate >= 40 ? "text-amber-600" : "text-red-600"}`}>
+            {dept.statistics.resolution_rate}%
+          </span>
+        </div>
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${dept.statistics.resolution_rate >= 70 ? "bg-emerald-500" : dept.statistics.resolution_rate >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+            style={{ width: `${dept.statistics.resolution_rate}%` }}
+          />
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          {dept.statistics.resolved_complaints} of {dept.statistics.total_complaints} complaints resolved
+        </p>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Complaint Status Pie */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-indigo-50 rounded-lg"><FileText className="w-4 h-4 text-indigo-600" /></div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Complaint Status</p>
+              <p className="text-xs text-gray-500">Distribution by status</p>
             </div>
           </div>
-          
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Resolution Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{data.overview.overall_resolution_rate}%</p>
+          {dept.statistics.total_complaints > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                    dataKey="value" paddingAngle={3}>
+                    {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any, n: any) => [`${v} complaints`, n]}
+                    contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-5 mt-2">
+                {pieData.map((e, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: e.color }} />
+                    <span className="text-xs text-gray-600">{e.name}</span>
+                    <span className="text-xs font-bold text-gray-800">{e.value}</span>
+                  </div>
+                ))}
               </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-orange-600" />
-              </div>
+            </>
+          ) : (
+            <div className="h-48 flex items-center justify-center text-gray-400 text-sm">No complaints yet</div>
+          )}
+        </div>
+
+        {/* Officers Bar Chart */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-purple-50 rounded-lg"><Users className="w-4 h-4 text-purple-600" /></div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Officer Strength</p>
+              <p className="text-xs text-gray-500">Total · Active · Inactive</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={barData} margin={{ left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                {barData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Contact + Head Officer Info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <p className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Mail className="w-4 h-4 text-blue-500" /> Contact Information
+          </p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-700">{dept.contact_email || "Not provided"}</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-700">{dept.contact_phone || "Not provided"}</span>
             </div>
           </div>
         </div>
 
-        {/* Department Information */}
-        {data.departments.length > 0 && (
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            {/* Department Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-semibold">{data.departments[0].name}</h3>
-                  <p className="text-blue-100">{data.departments[0].category}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-blue-100">Your Department</p>
-                  <p className="text-2xl font-bold">{data.departments[0].name}</p>
-                </div>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <p className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-indigo-500" /> Head Officer
+          </p>
+          {dept.head_officer ? (
+            <div className="flex items-center gap-4 p-3 bg-indigo-50 rounded-lg">
+              <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {dept.head_officer.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{dept.head_officer.name}</p>
+                <p className="text-xs text-gray-500">{dept.head_officer.email}</p>
               </div>
             </div>
-
-            {/* Department Details */}
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Contact Information</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{data.departments[0].contact_email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{data.departments[0].contact_phone}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Head Officer</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{data.departments[0].head_officer?.name || 'Not Assigned'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{data.departments[0].head_officer?.email || 'Not Available'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Statistics */}
-              <div className="mt-6 p-4 border-b border-gray-200">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Complaint Statistics</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Total</p>
-                    <p className="text-lg font-bold text-gray-900">{data.departments[0].statistics.total_complaints}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Resolved</p>
-                    <p className="text-lg font-bold text-green-600">{data.departments[0].statistics.resolved_complaints}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Pending</p>
-                    <p className="text-lg font-bold text-yellow-600">{data.departments[0].statistics.pending_complaints}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">In Progress</p>
-                    <p className="text-lg font-bold text-blue-600">{data.departments[0].statistics.in_progress_complaints}</p>
-                  </div>
-                </div>
-                
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Resolution Rate</span>
-                    <span>{data.departments[0].statistics.resolution_rate}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${data.departments[0].statistics.resolution_rate}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Officers Information */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Officers Information</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <p className="text-2xl font-bold text-blue-600">{data.departments[0].officers.total}</p>
-                    <p className="text-xs text-blue-600">Total Officers</p>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <p className="text-2xl font-bold text-green-600">{data.departments[0].officers.active}</p>
-                    <p className="text-xs text-green-600">Active Officers</p>
-                  </div>
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-600">{data.departments[0].officers.inactive}</p>
-                    <p className="text-xs text-gray-600">Inactive Officers</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Charts Section */}
-              <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Complaint Statistics Pie Chart */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">Complaint Statistics</h4>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Resolved', value: data.departments[0].statistics.resolved_complaints, color: '#10B981' },
-                          { name: 'In Progress', value: data.departments[0].statistics.in_progress_complaints, color: '#3B82F6' },
-                          { name: 'Pending', value: data.departments[0].statistics.pending_complaints, color: '#F59E0B' }
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={(entry) => `${entry.name}: ${entry.value}`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {[
-                          { name: 'Resolved', value: data.departments[0].statistics.resolved_complaints, color: '#10B981' },
-                          { name: 'In Progress', value: data.departments[0].statistics.in_progress_complaints, color: '#3B82F6' },
-                          { name: 'Pending', value: data.departments[0].statistics.pending_complaints, color: '#F59E0B' }
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Officer vs Assigned Complaints Bar Chart */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">Officer vs Assigned Complaints</h4>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={[
-                      { 
-                        name: 'Total Officers', 
-                        officers: data.departments[0].officers.total, 
-                        complaints: Math.round(data.departments[0].statistics.total_complaints / data.departments[0].officers.total) || 0,
-                        color: '#8B5CF6'
-                      },
-                      { 
-                        name: 'Active Officers', 
-                        officers: data.departments[0].officers.active, 
-                        complaints: Math.round(data.departments[0].statistics.total_complaints / data.departments[0].officers.active) || 0,
-                        color: '#10B981'
-                      },
-                      { 
-                        name: 'Inactive Officers', 
-                        officers: data.departments[0].officers.inactive, 
-                        complaints: 0,
-                        color: '#6B7280'
-                      }
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value, name) => [
-                          name === 'officers' ? `${value} officers` : `${value} complaints/officer`,
-                          name === 'officers' ? 'Officers' : 'Avg Complaints per Officer'
-                        ]}
-                      />
-                      <Legend />
-                      <Bar dataKey="officers" fill="#8B5CF6" name="Officers" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="complaints" fill="#F59E0B" name="Avg Complaints per Officer" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+          ) : (
+            <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <span className="text-sm text-amber-700">No head officer assigned</span>
             </div>
-          </div>
-         
-        )} 
+          )}
+        </div>
       </div>
-    </RequireAuth>
+
+    </div>
   )
-} 
+}

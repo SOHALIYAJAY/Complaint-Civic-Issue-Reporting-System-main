@@ -69,7 +69,7 @@ export default function AdminOfficersPage() {
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 shadow-sm p-6">
+      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border-t-4 border-t-blue-500 border border-blue-200 shadow-sm p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-blue-900">Officers Management</h1>

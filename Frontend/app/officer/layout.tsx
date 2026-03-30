@@ -1,12 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { 
   Menu, 
   X, 
   LogOut, 
-  Settings, 
   LayoutDashboard, 
   FileText, 
   Edit, 
@@ -19,8 +18,25 @@ export default function OfficerLayout({ children }: { children: React.ReactNode 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const [userInitial, setUserInitial] = useState('O')
+  const profileRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      const u = JSON.parse(userData)
+      setUserInitial((u.username || u.first_name || 'O').charAt(0).toUpperCase())
+    }
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/officer" },
@@ -29,7 +45,7 @@ export default function OfficerLayout({ children }: { children: React.ReactNode 
     { icon: User, label: "Profile", path: "/officer/profile" },
   ]
 
-  const navItems = [
+  const navItems: Array<{ icon: any; label: string; path: string }> = [
     // Removed Home, Dashboard, About, Contact as requested
   ]
 
@@ -97,7 +113,7 @@ export default function OfficerLayout({ children }: { children: React.ReactNode 
         {/* Sidebar footer */}
         <div className="p-3 border-t border-primary-foreground/20">
           <button
-            onClick={() => router.push("/logout")}
+            onClick={() => router.push("/officer/logout")}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-400 hover:bg-red-400/20 transition-all font-medium text-sm"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
@@ -158,49 +174,33 @@ export default function OfficerLayout({ children }: { children: React.ReactNode 
 
           <div className="flex items-center gap-4">
             {/* Profile Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 transition-colors py-2 px-2 rounded-lg"
               >
                 <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm">
-                  O
+                  {userInitial}
                 </div>
                 <div className="hidden md:block">
                   <p className="text-sm font-medium text-gray-900">Officer</p>
                   <p className="text-xs text-gray-500">Civic Services</p>
                 </div>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {profileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                   <button
-                    onClick={() => {
-                      router.push('/officer/profile')
-                      setProfileDropdownOpen(false)
-                    }}
+                    onClick={() => { router.push('/officer/profile'); setProfileDropdownOpen(false) }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                   >
                     <User className="w-4 h-4" />
                     Profile
                   </button>
+                  <div className="border-t border-gray-200 my-1" />
                   <button
-                    onClick={() => {
-                      router.push('/officer/settings')
-                      setProfileDropdownOpen(false)
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </button>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <button
-                    onClick={() => {
-                      router.push('/logout')
-                      setProfileDropdownOpen(false)
-                    }}
+                    onClick={() => { router.push('/officer/logout'); setProfileDropdownOpen(false) }}
                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />

@@ -7,6 +7,7 @@ import {
   AlertTriangle, Activity, Target, Briefcase, Upload, Image as ImageIcon
 } from "lucide-react"
 import api from '@/lib/axios'
+import ChangePasswordModal from '@/components/profile/change-password-modal'
 
 // Types
 interface DepartmentInfo {
@@ -73,6 +74,7 @@ export default function DepartmentProfilePage() {
   const [departmentImage, setDepartmentImage] = useState<string | null>(null)
   const [performanceImage, setPerformanceImage] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
 
   // Fetch user profile data
   const fetchProfile = useCallback(async () => {
@@ -258,6 +260,7 @@ export default function DepartmentProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
       {/* Header Section */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -267,7 +270,11 @@ export default function DepartmentProfilePage() {
                 <User className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Department Profile</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {profile.department?.name
+                    ? `${profile.department.name} Department — Profile`
+                    : 'Department Profile'}
+                </h1>
                 <p className="text-sm text-gray-600">Manage your professional information</p>
               </div>
             </div>
@@ -456,6 +463,43 @@ export default function DepartmentProfilePage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Department Info Card */}
+            {profile.department && (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div className="p-6 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Building className="w-5 h-5 text-sidebar-primary" />
+                    Department
+                  </h2>
+                </div>
+                <div className="p-6 space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Department Name</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {profile.department.name} Department
+                    </p>
+                  </div>
+                  {profile.department.description && (
+                    <p className="text-sm text-gray-600">{profile.department.description}</p>
+                  )}
+                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                    {profile.department.contact_email && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Mail className="w-4 h-4 text-gray-400" />
+                        <span>{profile.department.contact_email}</span>
+                      </div>
+                    )}
+                    {profile.department.contact_phone && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span>{profile.department.contact_phone}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Profile Picture Card */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
               <div className="p-6 border-b border-gray-200">
@@ -575,7 +619,7 @@ export default function DepartmentProfilePage() {
                     <button className="text-sm text-gray-600 hover:text-gray-700">Configure</button>
                   </div>
                 </div>
-                <button className="w-full px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90 transition-colors text-sm font-medium">
+                <button className="w-full px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90 transition-colors text-sm font-medium" onClick={() => setShowPasswordModal(true)}>
                   Change Password
                 </button>
               </div>

@@ -1,29 +1,41 @@
-import { Search, Filter } from 'lucide-react'
+'use client'
+
+import { Search, X, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 
 interface ComplaintsFilterProps {
   filterStatus: string
-  setFilterStatus: (status: string) => void
+  setFilterStatus: (s: string) => void
   searchTerm: string
-  setSearchTerm: (term: string) => void
+  setSearchTerm: (s: string) => void
   categoryFilter: string
-  setCategoryFilter: (category: string) => void
+  setCategoryFilter: (s: string) => void
   priorityFilter: string
-  setPriorityFilter: (priority: string) => void
+  setPriorityFilter: (s: string) => void
 }
 
+const STATUS_OPTS = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'Pending', label: 'Pending' },
+  { value: 'in-progress', label: 'In Progress' },
+  { value: 'resolved', label: 'Resolved' },
+]
+
+const PRIORITY_OPTS = [
+  { value: 'all', label: 'All Priorities' },
+  { value: 'Low', label: 'Low' },
+  { value: 'Medium', label: 'Medium' },
+  { value: 'High', label: 'High' },
+]
+
 export default function ComplaintsFilter({
-  filterStatus,
-  setFilterStatus,
-  searchTerm,
-  setSearchTerm,
-  categoryFilter,
-  setCategoryFilter,
-  priorityFilter,
-  setPriorityFilter,
+  filterStatus, setFilterStatus,
+  searchTerm, setSearchTerm,
+  categoryFilter, setCategoryFilter,
+  priorityFilter, setPriorityFilter,
 }: ComplaintsFilterProps) {
-  const [categories, setCategories] = useState<Array<any>>([])
+  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
 
   const API_BASE = (() => {
     const env = (process.env.NEXT_PUBLIC_API_URL as string) || ''
@@ -35,117 +47,100 @@ export default function ComplaintsFilter({
   useEffect(() => {
     let mounted = true
     fetch(`${API_BASE}/api/categorieslist/`)
-      .then((r) => {
-        if (!r.ok) throw new Error('Failed to fetch categories')
-        return r.json()
-      })
-      .then((data) => {
-        if (!mounted) return
-        setCategories(Array.isArray(data) ? data : [])
-      })
-      .catch(() => {
-        // ignore — we'll fall back to hardcoded options
-      })
-    return () => {
-      mounted = false
-    }
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (mounted) setCategories(Array.isArray(d) ? d : []) })
+      .catch(() => {})
+    return () => { mounted = false }
   }, [API_BASE])
 
+  const hasActiveFilters = filterStatus !== 'all' || categoryFilter !== 'all' || priorityFilter !== 'all' || searchTerm !== ''
+
+  const resetAll = () => {
+    setSearchTerm(''); setFilterStatus('all'); setCategoryFilter('all'); setPriorityFilter('all')
+  }
+
+  const selectClass = "h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer"
+
   return (
-    <section className="py-8 border-b border-border">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="space-y-6">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+    <section className="py-5 border-b border-border bg-muted/20 sticky top-0 z-10 backdrop-blur-sm">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
+        {/* Main filter row */}
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search by complaint ID or title..."
+              placeholder="Search by title..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-lg border border-border bg-background placeholder-muted-foreground text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full h-9 pl-9 pr-4 rounded-lg border border-border bg-background text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
             />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Filters Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Status Filter */}
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Status</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="in-progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                {/* <option value="rejected">Rejected</option> */}
-              </select>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <SlidersHorizontal className="w-4 h-4 text-muted-foreground shrink-0" />
 
-            {/* Category Filter */}
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Category</label>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-              >
-                <option value="all">All Categories</option>
-                {categories.length > 0
-                  ? categories.map((cat: any) => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.name + (cat.code ? ` (${cat.code})` : '')}
-                      </option>
-                    ))
-                  : (
-                    <>
-                      <option value="Roads & Infrastructure">Roads & Infrastructure</option>
-                      <option value="Water Supply">Water Supply</option>
-                      <option value="Sanitation">Sanitation</option>
-                      <option value="Street Lighting">Street Lighting</option>
-                      <option value="Drainage">Drainage</option>
-                      <option value="Other">Other</option>
-                    </>
-                  )}
-              </select>
-            </div>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectClass}>
+              {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
 
-            {/* Priority Filter */}
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Priority</label>
-              <select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-              >
-                <option value="all">All Priorities</option>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </select>
-            </div>
-          </div>
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className={selectClass}>
+              <option value="all">All Categories</option>
+              {categories.length > 0
+                ? categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                : <>
+                    <option value="Roads & Infrastructure">Roads & Infrastructure</option>
+                    <option value="Water Supply">Water Supply</option>
+                    <option value="Sanitation">Sanitation</option>
+                    <option value="Street Lighting">Street Lighting</option>
+                    <option value="Drainage">Drainage</option>
+                  </>
+              }
+            </select>
 
-          {/* Reset Button */}
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('')
-                setFilterStatus('all')
-                setCategoryFilter('all')
-                setPriorityFilter('all')
-              }}
-              className="border-border hover:bg-muted"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Reset Filters
-            </Button>
+            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className={selectClass}>
+              {PRIORITY_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+
+            {hasActiveFilters && (
+              <Button size="sm" variant="ghost" onClick={resetAll} className="h-9 gap-1.5 text-muted-foreground hover:text-foreground">
+                <X className="w-3.5 h-3.5" /> Clear
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-2">
+            {searchTerm && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                "{searchTerm}" <button onClick={() => setSearchTerm('')}><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {filterStatus !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                {filterStatus} <button onClick={() => setFilterStatus('all')}><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {categoryFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                {categoryFilter} <button onClick={() => setCategoryFilter('all')}><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {priorityFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                {priorityFilter} priority <button onClick={() => setPriorityFilter('all')}><X className="w-3 h-3" /></button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </section>
   )

@@ -3,7 +3,6 @@ import Header from '@/components/header'
 import DashboardSidebar from '@/components/dashboard/sidebar'
 import DashboardHeader from '@/components/dashboard/dashboard-header'
 import StatisticsCards from '@/components/dashboard/statistics-cards'
-import QuickActions from '@/components/dashboard/quick-actions'
 import RecentComplaints from '@/components/dashboard/recent-complaints'
 import AnalyticsCharts from '@/components/dashboard/analytics-charts'
 import RequireAuth from '@/components/auth/RequireAuth'
@@ -33,11 +32,6 @@ export default function DashboardPage() {
               {/* Statistics Cards */}
               <section className="mt-8">
                 <StatisticsCards />
-              </section>
-
-              {/* Quick Actions */}
-              <section className="mt-8">
-                <QuickActions />
               </section>
 
               {/* Recent Complaints & Charts - Full Width */}

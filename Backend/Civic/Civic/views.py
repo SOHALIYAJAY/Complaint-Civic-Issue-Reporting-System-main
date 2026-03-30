@@ -60,7 +60,20 @@ class getcomplaint(ListAPIView):
     serializer_class = ComplaintSerializer
 
     def get_queryset(self):
-        return Complaint.objects.filter(user=self.request.user)
+        qs = Complaint.objects.filter(user=self.request.user).order_by('-current_time')
+        status = self.request.query_params.get('status')
+        category = self.request.query_params.get('category')
+        priority = self.request.query_params.get('priority')
+        search = self.request.query_params.get('search')
+        if status and status != 'all':
+            qs = qs.filter(status__iexact=status)
+        if category and category != 'all':
+            qs = qs.filter(Category__name__iexact=category)
+        if priority and priority != 'all':
+            qs = qs.filter(priority_level__iexact=priority)
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(Description__icontains=search))
+        return qs
 
 
 class getcomplaintlimit(ListAPIView):
@@ -404,6 +417,7 @@ class complaintofficer(CreateAPIView):
 
 
 class officerprofile(APIView):
+    permission_classes = []
     def get(self, request, officer_id):
         try:
             officer = Officer.objects.get(officer_id=officer_id)
@@ -497,11 +511,13 @@ class adimncomplaints(ListAPIView):
             except Exception:
                 queryset = queryset.filter(Category__name=department)
         if status and status != 'all':
-            # Normalize common status variants
             status_map = {
                 'in-progress': 'in-progress',
                 'in_progress': 'in-progress',
-                'inprogress': 'in-progress'
+                'inprogress': 'in-progress',
+                'In Process': 'in-progress',
+                'resolved': 'resolved',
+                'Completed': 'resolved',
             }
             normalized = status_map.get(status, status)
             queryset = queryset.filter(status=normalized)
@@ -673,7 +689,14 @@ class crateofficer(CreateAPIView):
                     officer.email = email
                     officer.phone = phone
                     officer.is_available = bool(is_available)
-                    officer.save()
+
+                # Link officer to department if department_code provided
+                dept_code = request.data.get('department_code')
+                if dept_code:
+                    dept = Department.objects.filter(category=dept_code).first()
+                    if dept:
+                        officer.department = dept
+                officer.save()
 
                 return Response(
                     {
@@ -795,91 +818,77 @@ class admindashboardcard(APIView):
 
 class UserRoleDistribution(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         try:
-            # Get user role distribution using correct role names from CustomUser model
             regular_users = CustomUser.objects.filter(User_Role='Civic-User').count()
             officers = CustomUser.objects.filter(User_Role='Officer').count()
             admins = CustomUser.objects.filter(User_Role='Admin-User').count()
-            
-            # Debug logging
-            print(f"UserRoleDistribution - Regular Users: {regular_users}, Officers: {officers}, Admins: {admins}")
-            print(f"Total users in database: {CustomUser.objects.count()}")
-            
+            department_users = CustomUser.objects.filter(User_Role='Department-User').count()
             return Response({
                 'regular_users': regular_users,
                 'officers': officers,
-                'admins': admins
+                'admins': admins,
+                'department_users': department_users,
             })
         except Exception as e:
-            print(f"Error in UserRoleDistribution: {str(e)}")
-            return Response({
-                'error': str(e),
-                'message': 'Failed to fetch user role distribution'
-            }, status=500)
+            return Response({'error': str(e)}, status=500)
 
 
 class ComplaintStatusTrends(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         try:
-            # Get monthly complaint trends for the last 12 months (rolling window)
             from datetime import datetime
-
             now = datetime.now()
-
-            # Prepare month names and result container
+            is_admin = request.user.is_staff or request.user.User_Role == 'Admin-User'
+            view = request.query_params.get('view', 'monthly')
+            year_param = request.query_params.get('year')  # specific year e.g. '2023'
             month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-            monthly_data = []
 
-            # Build a list for the last 12 months including previous year months
+            # --- Yearly overview (last 5 years) ---
+            if view == 'yearly':
+                yearly_data = []
+                for years_ago in range(4, -1, -1):
+                    y = now.year - years_ago
+                    count = Complaint.objects.filter(current_time__year=y).count() if is_admin \
+                        else Complaint.objects.filter(user=request.user, current_time__year=y).count()
+                    yearly_data.append({'year': str(y), 'complaints': count})
+                return Response({
+                    'yearly_data': yearly_data,
+                    'total_complaints': sum(d['complaints'] for d in yearly_data)
+                })
+
+            # --- Month-wise for a specific year ---
+            if year_param and year_param.isdigit():
+                y = int(year_param)
+                monthly_data = []
+                for m in range(1, 13):
+                    count = Complaint.objects.filter(current_time__year=y, current_time__month=m).count() if is_admin \
+                        else Complaint.objects.filter(user=request.user, current_time__year=y, current_time__month=m).count()
+                    monthly_data.append({'month': month_names[m - 1], 'month_number': m, 'year': y, 'complaints': count})
+                return Response({
+                    'monthly_data': monthly_data,
+                    'total_complaints': sum(d['complaints'] for d in monthly_data)
+                })
+
+            # --- Default: rolling last 12 months ---
+            monthly_data = []
             for months_ago in range(11, -1, -1):
-                # compute year and month for months_ago
                 total_months = now.year * 12 + now.month - 1 - months_ago
                 y = total_months // 12
                 m = (total_months % 12) + 1
-
-                month_label = f"{month_names[m-1]} {y}"
-                
-                # Filter by user for personal dashboard, or all users for admin
-                if request.user.is_staff or request.user.User_Role == 'Admin-User':
-                    # Admin sees system-wide data
-                    total_count = Complaint.objects.filter(
-                        current_time__year=y,
-                        current_time__month=m
-                    ).count()
-                else:
-                    # Regular users see only their own complaints
-                    total_count = Complaint.objects.filter(
-                        user=request.user,
-                        current_time__year=y,
-                        current_time__month=m
-                    ).count()
-
-                monthly_data.append({
-                    'month': month_label,
-                    'month_number': m,
-                    'year': y,
-                    'complaints': total_count,
-                    'density': total_count
-                })
-
+                month_label = f"{month_names[m - 1]} {y}"
+                count = Complaint.objects.filter(current_time__year=y, current_time__month=m).count() if is_admin \
+                    else Complaint.objects.filter(user=request.user, current_time__year=y, current_time__month=m).count()
+                monthly_data.append({'month': month_label, 'month_number': m, 'year': y, 'complaints': count})
             return Response({
                 'monthly_data': monthly_data,
-                'density_data': monthly_data,
-                'start_month': monthly_data[0]['month_number'] if monthly_data else None,
-                'start_year': monthly_data[0]['year'] if monthly_data else None,
-                'end_month': monthly_data[-1]['month_number'] if monthly_data else None,
-                'end_year': monthly_data[-1]['year'] if monthly_data else None,
-                'total_complaints': sum(item['complaints'] for item in monthly_data)
+                'total_complaints': sum(d['complaints'] for d in monthly_data)
             })
         except Exception as e:
-            return Response({
-                'error': str(e),
-                'message': 'Failed to fetch complaint trends'
-            }, status=500)
+            return Response({'error': str(e), 'message': 'Failed to fetch complaint trends'}, status=500)
 
 
 class CivicUserActivityView(APIView):
@@ -1526,10 +1535,12 @@ class DepartmentUserProfile(APIView):
             department_info = None
             try:
                 departments = Department.objects.filter(officers=user)
+                if not departments.exists():
+                    departments = Department.objects.filter(head_officer=user)
                 if departments.exists():
                     dept = departments.first()
                     department_info = {
-                        'name': dept.name,
+                        'name': dept.get_category_display(),  # full display name e.g. 'Water Supply'
                         'category': dept.category,
                         'description': dept.description,
                         'contact_email': dept.contact_email,

@@ -120,10 +120,6 @@ export default function TrackComplaintPage() {
                 <div className="bg-gray-50 rounded-lg p-6 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Complaint ID</p>
-                      <p className="font-medium text-gray-900">{result.id || result.complaint_id}</p>
-                    </div>
-                    <div>
                       <p className="text-sm text-gray-500 mb-1">Status</p>
                       <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
                         result.status === 'resolved' 

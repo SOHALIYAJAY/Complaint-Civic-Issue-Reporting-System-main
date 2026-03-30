@@ -134,7 +134,7 @@ export default function MyComplaintsPage() {
         <MyComplaintsHeader />
 
         {/* Summary Cards */}
-        <section className="py-8 border-b border-border bg-muted/20">
+        <section className="py-6 border-b border-border">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <ComplaintsSummary />
           </div>
@@ -170,7 +170,6 @@ export default function MyComplaintsPage() {
         {selectedComplaint && (
           <ComplaintDetailsModal
             complaint={selectedComplaint}
-            open={!!selectedComplaint}
             onClose={() => setSelectedComplaint(null)}
           />
         )}

@@ -1,11 +1,10 @@
- "use client"
+"use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Menu,
   X,
-  Search,
   LogOut,
   LayoutDashboard,
   FileText,
@@ -13,15 +12,14 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Home,
-  Building2,
 } from "lucide-react"
 import RequireAuth from '@/components/auth/RequireAuth'
 
 const menuItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: LayoutDashboard, label: "Dashboard", path: "/department" },
-  { icon: Building2, label: "Departments Overview", path: "/department/departments-overview" },
   { icon: FileText, label: "Assigned Complaints", path: "/department/assigned" },
   { icon: Users, label: "Officers", path: "/department/officers" },
   // { icon: Users, label: "Users", path: "/department/users" },
@@ -31,8 +29,49 @@ const menuItems = [
 export default function DepartmentLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const [userInitial, setUserInitial] = useState('D')
+  const [deptName, setDeptName] = useState('Department')
+  const [deptCode, setDeptCode] = useState('')
+  const [userName, setUserName] = useState('Department Head')
+  const profileRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        const u = JSON.parse(userData)
+        setUserInitial((u.username || u.first_name || 'D').charAt(0).toUpperCase())
+        if (u.first_name || u.username)
+          setUserName(u.first_name ? `${u.first_name}${u.last_name ? ' ' + u.last_name : ''}` : u.username)
+      } catch {}
+    }
+
+    // Fetch real department name from dashboard API
+    const token = localStorage.getItem('access_token')
+    if (token && token !== 'undefined' && token !== 'null') {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      fetch(`${API_BASE}/api/department/dashboard/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          const name = data?.department?.category || data?.department?.name
+          const code = data?.department?.code || ''
+          if (name) { setDeptName(name); setDeptCode(code) }
+        })
+        .catch(() => {})
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node))
+        setProfileDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
     // Allow both Department and Admin users to open department pages
@@ -64,7 +103,7 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
             {sidebarOpen && (
               <div className="min-w-0">
                 <h1 className="text-sm font-bold text-primary-foreground truncate">CivicTrack</h1>
-                <p className="text-xs text-primary-foreground/70 truncate">Dept Portal</p>
+                <p className="text-xs text-primary-foreground/70 truncate">{deptName || 'Dept Head'}</p>
               </div>
             )}
           </div>
@@ -133,25 +172,50 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
               {mobileOpen ? <X className="w-5 h-5 text-[#64748B]" /> : <Menu className="w-5 h-5 text-[#64748B]" />}
             </button>
             <div className="hidden sm:block">
-              <h2 className="text-base font-semibold text-[#1E293B]">Public Works Department</h2>
-              <p className="text-xs text-[#64748B]">Department Operations Dashboard</p>
+              <h2 className="text-base font-semibold text-[#1E293B]">
+                {deptName ? `${deptName} Department` : 'Department Portal'}
+              </h2>
+              <p className="text-xs text-[#64748B]">Head Dashboard</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Profile Button */}
-            <button 
-              onClick={() => router.push('/department/profile')}
-              className="flex items-center gap-3 pl-3 border-l border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors"
-            >
-              <div className="w-9 h-9 rounded-full bg-sidebar-primary text-white flex items-center justify-center font-semibold text-sm">
-                PW
-              </div>
-              <div className="hidden md:block">
-                <p className="text-sm font-medium text-[#1E293B]">Dept. Officer</p>
-                <p className="text-xs text-[#64748B]">Public Works</p>
-              </div>
-            </button>
+            {/* Profile Dropdown */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="flex items-center gap-3 pl-3 border-l border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors py-2 px-2 rounded-lg"
+              >
+                <div className="w-9 h-9 rounded-full bg-sidebar-primary text-white flex items-center justify-center font-semibold text-sm">
+                  {userInitial}
+                </div>
+                <div className="hidden md:block text-left">
+                  <p className="text-sm font-medium text-[#1E293B]">{userName}</p>
+                  <p className="text-xs text-[#64748B] truncate max-w-[120px]">{deptName ? `${deptName} Dept` : 'Dept Head'}</p>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {profileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-lg shadow-lg border border-[#E2E8F0] py-1 z-50">
+                  <button
+                    onClick={() => { router.push('/department/profile'); setProfileDropdownOpen(false) }}
+                    className="w-full text-left px-4 py-2 text-sm text-[#1E293B] hover:bg-[#F8FAFC] flex items-center gap-2"
+                  >
+                    <User className="w-4 h-4 text-[#64748B]" />
+                    Profile
+                  </button>
+                  <div className="border-t border-[#E2E8F0] my-1" />
+                  <button
+                    onClick={() => { router.push('/department/logout'); setProfileDropdownOpen(false) }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

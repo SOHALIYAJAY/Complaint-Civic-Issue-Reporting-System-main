@@ -1,8 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Edit, Plus, RefreshCw, User } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { RefreshCw } from 'lucide-react'
 import DashboardStatsCards from '@/components/officer/dashboard/dashboard-stats-cards'
 import MonthlyTrendPanel from '@/components/officer/dashboard/monthly-trend'
 import RecentComplaintsPanel from '@/components/officer/dashboard/recent-complaints-panel'
@@ -41,8 +40,6 @@ export default function OfficerDashboard() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [loading, setLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const router = useRouter()
-
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
 
   const defaultStats: DashboardStats = {
@@ -159,50 +156,6 @@ export default function OfficerDashboard() {
           <RecentComplaintsPanel complaints={recentComplaints} />
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button 
-              onClick={() => router.push('/officer/complaints')}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Plus className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-medium text-gray-900">View All Complaints</p>
-                <p className="text-xs text-gray-500">Browse all system complaints</p>
-              </div>
-            </button>
-            
-            <button 
-              onClick={() => router.push('/officer/update-status')}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Edit className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-medium text-gray-900">Update Status</p>
-                <p className="text-xs text-gray-500">Change complaint statuses</p>
-              </div>
-            </button>
-            
-            <button 
-              onClick={() => router.push('/officer/profile')}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <User className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-medium text-gray-900">My Profile</p>
-                <p className="text-xs text-gray-500">Manage your profile settings</p>
-              </div>
-            </button>
-          </div>
-        </div>
       </div>
   )
 }

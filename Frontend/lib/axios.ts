@@ -7,7 +7,7 @@ const api = axios.create({
 // Add request interceptor to include authentication token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token') || localStorage.getItem('adminToken')
     const isTokenValid = Boolean(token && token !== 'undefined' && token !== 'null')
     
     if (isTokenValid) {

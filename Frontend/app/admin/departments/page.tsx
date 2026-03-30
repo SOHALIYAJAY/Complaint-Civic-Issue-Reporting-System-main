@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Search, RefreshCw, Building2, Users, Mail, Phone, Calendar, User, MapPin, AlertTriangle } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { Edit2, Trash2, Search, RefreshCw, Building2, Users, Mail, Phone, Calendar, User, AlertTriangle, ChevronDown } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 
 interface Department {
   id: number
@@ -22,7 +22,19 @@ interface DepartmentStats {
   departments_with_head: number
   departments_without_head: number
   category_distribution: Array<{ category: string; count: number }>
-  department_statistics: Array<{ name: string; complaint_count: number; officer_count: number }>
+  department_statistics: Array<{
+    name: string
+    category: string
+    complaint_count: number
+    pending_count: number
+    inprogress_count: number
+    resolved_count: number
+    officer_count: number
+    resolution_rate: number
+  }>
+  pie_category_distribution: Array<{ name: string; value: number }>
+  monthly_trend: Array<{ month: string; complaints: number; resolved: number; pending: number }>
+  yearly_trend: Array<{ year: string; complaints: number; resolved: number; pending: number; inprogress: number }>
 }
 
 export default function DepartmentsPage() {
@@ -48,6 +60,17 @@ export default function DepartmentsPage() {
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
   const itemsPerPage = 10
+
+  // Year selector for dept-wise complaints chart
+  const CURRENT_YEAR = new Date().getFullYear()
+  const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - i)
+  const [compYear, setCompYear] = useState(CURRENT_YEAR)
+  const [compYearOpen, setCompYearOpen] = useState(false)
+  const [deptComplaintData, setDeptComplaintData] = useState<{ name: string; complaints: number }[]>([])
+  const [deptOfficerData, setDeptOfficerData] = useState<{ name: string; officers: number }[]>([])
+  const [chartsLoading, setChartsLoading] = useState(false)
+
+  const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6']
 
   const categoryChoices = [
     { value: 'ROADS', label: 'Roads & Infrastructure' },
@@ -94,9 +117,13 @@ export default function DepartmentsPage() {
       const res = await fetch(`${API_BASE}/api/departments/statistics/`, { headers: getAuthHeaders() })
       if (!res.ok) throw new Error(`Failed to fetch department statistics (${res.status})`)
       const data = await res.json()
-      if (data.department_statistics) {
-        setStats(prev => prev ? { ...prev, department_statistics: data.department_statistics } : null)
-      }
+      setStats(prev => prev ? {
+        ...prev,
+        department_statistics: data.department_statistics || [],
+        pie_category_distribution: data.category_distribution || [],
+        monthly_trend: data.monthly_trend || [],
+        yearly_trend: data.yearly_trend || [],
+      } : null)
     } catch (e: any) {
       console.error('Error fetching department statistics:', e.message)
     }
@@ -116,7 +143,11 @@ export default function DepartmentsPage() {
       total_officers: depts.reduce((sum, dept) => sum + dept.officer_count, 0),
       departments_with_head: depts.filter(dept => dept.head_officer_name).length,
       departments_without_head: depts.filter(dept => !dept.head_officer_name).length,
-      category_distribution: categoryDistribution
+      category_distribution: categoryDistribution,
+      department_statistics: [],
+      pie_category_distribution: [],
+      monthly_trend: [],
+      yearly_trend: [],
     })
   }
 
@@ -176,6 +207,94 @@ export default function DepartmentsPage() {
     setShowAddForm(true)
   }
 
+  async function fetchDeptComplaintData(year: number) {
+    setChartsLoading(true)
+    try {
+      // Try department_statistics first (real per-dept data)
+      const res = await fetch(`${API_BASE}/api/departments/statistics/?year=${year}`, { headers: getAuthHeaders() })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const data = await res.json()
+      const deptStats: any[] = data.department_statistics ?? []
+
+      if (deptStats.length > 0) {
+        // Use department_statistics — real data per Department record
+        setDeptComplaintData(
+          deptStats
+            .filter(d => d.complaint_count > 0)
+            .map(d => ({ name: d.name || d.category, complaints: d.complaint_count }))
+        )
+      } else {
+        // Fallback: use category_distribution (complaints per Category record)
+        const catDist: any[] = data.category_distribution ?? []
+        setDeptComplaintData(
+          catDist
+            .filter(d => d.value > 0)
+            .map(d => ({ name: d.name, complaints: d.value }))
+        )
+      }
+    } catch (e) {
+      console.error('fetchDeptComplaintData error:', e)
+      // Last fallback: totalcategories endpoint
+      try {
+        const res2 = await fetch(`${API_BASE}/api/totalcategories/`, { headers: getAuthHeaders() })
+        if (res2.ok) {
+          const data2: any[] = await res2.json()
+          setDeptComplaintData(
+            data2.filter(d => Number(d.total_comp ?? 0) > 0)
+                 .map(d => ({ name: d.name, complaints: Number(d.total_comp) }))
+          )
+        } else { setDeptComplaintData([]) }
+      } catch { setDeptComplaintData([]) }
+    } finally {
+      setChartsLoading(false)
+    }
+  }
+
+  async function fetchDeptOfficerData() {
+    try {
+      const res = await fetch(`${API_BASE}/api/departments/statistics/`, { headers: getAuthHeaders() })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const data = await res.json()
+      const deptStats: any[] = data.department_statistics ?? []
+
+      if (deptStats.length > 0) {
+        setDeptOfficerData(
+          deptStats
+            .filter(d => d.officer_count > 0)
+            .map(d => ({ name: d.name || d.category, officers: d.officer_count }))
+        )
+      } else {
+        // Fallback: use officer_count from departments list
+        const deptList = departments.filter(d => d.officer_count > 0)
+        setDeptOfficerData(deptList.map(d => ({ name: d.name, officers: d.officer_count })))
+      }
+    } catch (e) {
+      console.error('fetchDeptOfficerData error:', e)
+      // Fallback: use officer_count from already-loaded departments list
+      const deptList = departments.filter(d => d.officer_count > 0)
+      setDeptOfficerData(deptList.map(d => ({ name: d.name, officers: d.officer_count })))
+    }
+  }
+
+  useEffect(() => {
+    fetchDepartments()
+    fetchDepartmentStatistics()
+    fetchDeptComplaintData(compYear)
+    fetchDeptOfficerData()
+  }, [])
+
+  useEffect(() => {
+    if (departments.length > 0) {
+      computeStats(departments)
+      // Re-run officer data once departments are loaded (for fallback)
+      fetchDeptOfficerData()
+    }
+  }, [departments])
+
+  useEffect(() => {
+    fetchDeptComplaintData(compYear)
+  }, [compYear])
+
   const filteredDepartments = departments.filter(dept => {
     const matchesSearch = dept.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          dept.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -187,23 +306,10 @@ export default function DepartmentsPage() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedDepartments = filteredDepartments.slice(startIndex, startIndex + itemsPerPage)
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
-
-  useEffect(() => {
-    fetchDepartments()
-    fetchDepartmentStatistics()
-  }, [])
-
-  useEffect(() => {
-    if (departments.length > 0) {
-      computeStats(departments)
-    }
-  }, [departments])
-
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-indigo-500 shadow-sm p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Department Management</h1>
@@ -222,10 +328,10 @@ export default function DepartmentsPage() {
               Refresh
             </button>
             <button
-              onClick={() => setShowAddForm(true)}
+              onClick={() => { setEditingDepartment(null); setForm({ name: '', category: '', description: '', contact_email: '', contact_phone: '', head_officer: '' }); setShowAddForm(true) }}
               className="flex items-center gap-2 px-4 py-2 bg-sidebar-primary text-white rounded-lg hover:bg-sidebar-primary/90 transition-colors"
             >
-              <Plus className="w-4 h-4" />
+              <Building2 className="w-4 h-4" />
               Add Department
             </button>
           </div>
@@ -235,89 +341,115 @@ export default function DepartmentsPage() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-t-4 border-t-sidebar-primary">
-            <div className="flex items-center justify-between">
+          {[
+            { label: 'Total Departments', value: stats.total_departments, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-t-indigo-500', icon: <Building2 className="w-6 h-6 text-indigo-600" /> },
+            { label: 'Total Officers',    value: stats.total_officers,    color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-t-green-500',  icon: <Users className="w-6 h-6 text-green-600" /> },
+            { label: 'With Head Officer', value: stats.departments_with_head,    color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-t-blue-500',   icon: <User className="w-6 h-6 text-blue-600" /> },
+            { label: 'Without Head',      value: stats.departments_without_head, color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-t-red-500',    icon: <AlertTriangle className="w-6 h-6 text-red-600" /> },
+          ].map(({ label, value, color, bg, border, icon }) => (
+            <div key={label} className={`bg-white rounded-xl border border-gray-200 border-t-4 ${border} shadow-sm p-6 h-[120px] flex items-center justify-between`}>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Departments</p>
-                <p className="text-2xl font-bold text-sidebar-primary">{stats.total_departments}</p>
+                <p className="text-sm font-medium text-gray-500">{label}</p>
+                <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
               </div>
-              <div className="p-3 rounded-lg bg-sidebar-primary/10">
-                <Building2 className="w-6 h-6 text-sidebar-primary" />
-              </div>
+              <div className={`p-3 rounded-lg ${bg}`}>{icon}</div>
             </div>
-          </div>
-          
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-t-4 border-t-green-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Officers</p>
-                <p className="text-2xl font-bold text-green-600">{stats.total_officers}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-green-100">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-t-4 border-t-blue-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">With Head Officer</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.departments_with_head}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-blue-100">
-                <User className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 border-t-4 border-t-red-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Without Head</p>
-                <p className="text-2xl font-bold text-red-600">{stats.departments_without_head}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-red-100">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Charts */}
-      {stats && stats.department_statistics && stats.department_statistics.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Department-wise Complaints</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.department_statistics} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={100} />
-                <Tooltip />
-                <Bar dataKey="complaint_count" fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
+      {/* Analysis Graphs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Dept-wise Complaints Bar Chart with Year Selector */}
+        <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-indigo-500 shadow-sm p-6 flex flex-col">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Department-wise Complaints</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Total complaints per department in {compYear}</p>
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setCompYearOpen(p => !p)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                {compYear}
+                <ChevronDown className={`w-4 h-4 transition-transform ${compYearOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {compYearOpen && (
+                <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                  {YEAR_OPTIONS.map(y => (
+                    <button
+                      key={y}
+                      onClick={() => { setCompYear(y); setCompYearOpen(false) }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                        compYear === y ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Department-wise Officers</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.department_statistics} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={100} />
-                <Tooltip />
-                <Bar dataKey="officer_count" fill="#10b981" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="flex-1 min-h-[260px]">
+            {chartsLoading ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="w-7 h-7 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+              </div>
+            ) : deptComplaintData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={deptComplaintData} margin={{ top: 5, right: 10, left: -10, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 10 }} angle={-35} textAnchor="end" height={70} tickLine={false} />
+                  <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} formatter={(v: any) => [`${v} complaints`, 'Total']} />
+                  <Bar dataKey="complaints" radius={[5, 5, 0, 0]}>
+                    {deptComplaintData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                <Building2 className="w-10 h-10 mb-2 text-gray-300" />
+                <p className="text-sm">No complaint data for {compYear}</p>
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Dept-wise Officers Bar Chart */}
+        <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-emerald-500 shadow-sm p-6 flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">Department-wise Officers</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Active officers assigned per department ({CURRENT_YEAR})</p>
+          </div>
+          <div className="flex-1 min-h-[260px]">
+            {deptOfficerData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={deptOfficerData} margin={{ top: 5, right: 10, left: -10, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 10 }} angle={-35} textAnchor="end" height={70} tickLine={false} />
+                  <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} formatter={(v: any) => [`${v} officers`, 'Officers']} />
+                  <Bar dataKey="officers" radius={[5, 5, 0, 0]}>
+                    {deptOfficerData.map((_, i) => <Cell key={i} fill={CHART_COLORS[(i + 3) % CHART_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                <Users className="w-10 h-10 mb-2 text-gray-300" />
+                <p className="text-sm">No officer data available</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-gray-400 shadow-sm p-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -347,7 +479,7 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Departments Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-slate-400 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">All Departments</h3>
           <p className="text-sm text-gray-500">Manage and monitor department operations</p>

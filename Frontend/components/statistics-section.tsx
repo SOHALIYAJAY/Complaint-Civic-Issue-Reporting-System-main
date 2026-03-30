@@ -29,7 +29,13 @@ export default function StatisticsSection() {
   const [stats, setStats] = useState<StatData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+
+  const getApiBase = () => {
+    const env = process.env.NEXT_PUBLIC_API_URL || ''
+    if (env) return env
+    if (typeof window !== 'undefined') return `${window.location.protocol}//${window.location.hostname}:8000`
+    return 'http://127.0.0.1:8000'
+  }
   
   useEffect(() => {
     setIsVisible(true)
@@ -40,44 +46,29 @@ export default function StatisticsSection() {
     try {
       setLoading(true)
       setError(null)
-      
+
+      const API_BASE_URL = getApiBase()
       const token = localStorage.getItem('access_token')
       const isTokenValid = Boolean(token && token !== 'undefined' && token !== 'null')
-      
-      // Try authenticated endpoint first, fallback to public endpoint
-      let endpoint = `${API_BASE_URL}/api/getcompinfo/`
-      let headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+
+      const endpoint = isTokenValid
+        ? `${API_BASE_URL}/api/getcompinfo/`
+        : `${API_BASE_URL}/api/complaintinfo/`
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (isTokenValid) headers['Authorization'] = `Bearer ${token}`
+
+      let response = await fetch(endpoint, { headers })
+
+      if (!response.ok && response.status === 401 && isTokenValid) {
+        response = await fetch(`${API_BASE_URL}/api/complaintinfo/`, {
+          headers: { 'Content-Type': 'application/json' }
+        })
       }
-      
-      if (isTokenValid) {
-        headers['Authorization'] = `Bearer ${token}`
-      } else {
-        endpoint = `${API_BASE_URL}/api/complaintinfo/`
-      }
-      
-      const response = await fetch(endpoint, { headers })
-      
-      if (!response.ok) {
-        if (response.status === 401 && isTokenValid) {
-          // Fallback to public endpoint if unauthorized
-          const publicResponse = await fetch(`${API_BASE_URL}/api/complaintinfo/`, {
-            headers: { 'Content-Type': 'application/json' }
-          })
-          
-          if (!publicResponse.ok) {
-            throw new Error(`HTTP error! status: ${publicResponse.status}`)
-          }
-          
-          const data = await publicResponse.json()
-          setStats(data)
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-      } else {
-        const data = await response.json()
-        setStats(data)
-      }
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+
+      const data = await response.json()
+      setStats(data)
       
     } catch (error) {
       console.error("Error fetching statistics:", error)

@@ -9,6 +9,7 @@ export default function CreateOfficerPage(){
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
   const [isAvailable, setIsAvailable] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,6 +20,7 @@ export default function CreateOfficerPage(){
     if (!name.trim()) return 'Name is required'
     if (!email.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return 'Valid email is required'
     if (!phone.trim()) return 'Phone is required'
+    if (!password.trim() || password.length < 6) return 'Password must be at least 6 characters'
     return null
   }
 
@@ -34,6 +36,7 @@ export default function CreateOfficerPage(){
         name,
         email,
         phone,
+        password,
         is_available: isAvailable
       }
       const res = await api.post('/api/create-officer/', payload)
@@ -70,6 +73,10 @@ export default function CreateOfficerPage(){
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
           <input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full border rounded px-3 py-2" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded px-3 py-2" />
         </div>
         <div className="flex items-center gap-2">
           <input id="avail" type="checkbox" checked={isAvailable} onChange={e=>setIsAvailable(e.target.checked)} />

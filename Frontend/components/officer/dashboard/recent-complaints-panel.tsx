@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Activity, Eye, Edit, AlertTriangle, Calendar, MapPin, User } from "lucide-react"
+import { Activity, Clock, Calendar, MapPin, User } from "lucide-react"
 
 type RecentComplaint = {
   id: number
@@ -17,27 +17,19 @@ type RecentComplaint = {
 
 function getStatusColor(status: string) {
   switch (status.toLowerCase()) {
-    case "pending":
-      return "bg-red-100 text-red-800 border-red-200"
-    case "in-progress":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200"
-    case "resolved":
-      return "bg-green-100 text-green-800 border-green-200"
-    default:
-      return "bg-gray-100 text-gray-800 border-gray-200"
+    case "pending":     return "bg-red-100 text-red-800 border-red-200"
+    case "in-progress": return "bg-yellow-100 text-yellow-800 border-yellow-200"
+    case "resolved":    return "bg-green-100 text-green-800 border-green-200"
+    default:            return "bg-gray-100 text-gray-800 border-gray-200"
   }
 }
 
 function getPriorityColor(priority: string) {
   switch (priority?.toLowerCase()) {
-    case "high":
-      return "bg-red-50 text-red-700 border-red-200"
-    case "medium":
-      return "bg-yellow-50 text-yellow-700 border-yellow-200"
-    case "low":
-      return "bg-green-50 text-green-700 border-green-200"
-    default:
-      return "bg-gray-50 text-gray-700 border-gray-200"
+    case "high":   return "bg-red-50 text-red-700 border-red-200"
+    case "medium": return "bg-yellow-50 text-yellow-700 border-yellow-200"
+    case "low":    return "bg-green-50 text-green-700 border-green-200"
+    default:       return "bg-gray-50 text-gray-700 border-gray-200"
   }
 }
 
@@ -54,61 +46,41 @@ export default function RecentComplaintsPanel({ complaints }: { complaints: Rece
       {hasData ? (
         <div className="space-y-3">
           {complaints.map((c) => (
-            <div
-              key={c.id}
-              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-gray-900">#{c.id}</span>
-                    {c.isOverdue && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Overdue
-                      </span>
-                    )}
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusColor(
-                        c.status
-                      )}`}
-                    >
-                      {c.status}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPriorityColor(
-                        c.priority
-                      )}`}
-                    >
-                      {c.priority}
-                    </span>
-                  </div>
+            <div key={c.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-sm font-medium text-gray-900">#{c.id}</span>
 
-                  <h4 className="text-sm font-medium text-gray-900 mb-1">{c.title}</h4>
+                  {c.status.toLowerCase() === "pending" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                      <Clock className="w-3 h-3" />
+                      Pending
+                    </span>
+                  )}
 
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {c.citizenName}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {c.location}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {c.date}
-                    </span>
-                  </div>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusColor(c.status)}`}>
+                    {c.status}
+                  </span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPriorityColor(c.priority)}`}>
+                    {c.priority}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2 ml-4">
-                  <button type="button" className="text-blue-600 hover:text-blue-800" title="View Details">
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button type="button" className="text-sidebar-primary hover:text-sidebar-primary/80" title="Update">
-                    <Edit className="w-4 h-4" />
-                  </button>
+                <h4 className="text-sm font-medium text-gray-900 mb-1">{c.title}</h4>
+
+                <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {c.citizenName}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {c.location}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {c.date}
+                  </span>
                 </div>
               </div>
             </div>
