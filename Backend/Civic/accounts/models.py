@@ -20,6 +20,7 @@ class CustomUser(AbstractUser, PermissionsMixin):
     district = models.CharField(max_length=100, blank=True, null=True)
     taluka = models.CharField(max_length=100, blank=True, null=True)
     ward_number = models.CharField(max_length=10, blank=True, null=True)
+    email_verified = models.BooleanField(default=False)
     objects = CustomUserManager()
 
     USERNAME_FIELD = "email"
@@ -27,4 +28,27 @@ class CustomUser(AbstractUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+import random
+from django.utils import timezone
+from datetime import timedelta
+
+class EmailOTP(models.Model):
+    user  = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='email_otp')
+    otp   = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now=True)
+
+    def is_valid(self):
+        """OTP expires after 10 minutes."""
+        return timezone.now() < self.created_at + timedelta(minutes=10)
+
+    @classmethod
+    def generate(cls, user):
+        code = str(random.randint(100000, 999999))
+        obj, _ = cls.objects.update_or_create(user=user, defaults={'otp': code})
+        return code
+
+    def __str__(self):
+        return f"{self.user.email} — {self.otp}"
     

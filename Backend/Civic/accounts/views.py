@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import CustomUser
+from .models import CustomUser, EmailOTP
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from google.oauth2 import id_token
@@ -10,6 +10,8 @@ from google.auth.transport import requests
 from accounts.serializers import UserRegister, UserDetailSerializer, UserUpdateSerializer, UserAdminSerializer
 from complaints.models import Complaint
 from rest_framework.pagination import PageNumberPagination
+from django.core.mail import send_mail
+from django.conf import settings as django_settings
 
 
 class TestAPIView(APIView):
@@ -20,6 +22,26 @@ class TestAPIView(APIView):
         })
 
 
+def _send_otp_email(email, otp):
+    """Send OTP verification email."""
+    try:
+        send_mail(
+            subject='CivicTrack — Email Verification OTP',
+            message=(
+                f'Your OTP for CivicTrack email verification is: {otp}\n\n'
+                f'This OTP is valid for 10 minutes.\n'
+                f'Do not share this OTP with anyone.'
+            ),
+            from_email=django_settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f'Email send error: {e}')
+        return False
+
+
 class LoginView(APIView):
     def post(self, request):
         email = request.data.get('email')
@@ -27,7 +49,7 @@ class LoginView(APIView):
 
         if not email or not password:
             return Response(
-                {'success': False, 'message': 'Email and password are required'}, 
+                {'success': False, 'message': 'Email and password are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -36,7 +58,21 @@ class LoginView(APIView):
             if user.check_password(password):
                 if not user.is_active:
                     return Response(
-                        {'success': False, 'message': 'User account is inactive'}, 
+                        {'success': False, 'message': 'User account is inactive'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                # Block login if email not verified
+                if not user.email_verified:
+                    # Resend OTP so they can verify
+                    otp = EmailOTP.generate(user)
+                    _send_otp_email(user.email, otp)
+                    return Response(
+                        {
+                            'success': False,
+                            'message': 'Email not verified. A new OTP has been sent to your email.',
+                            'requires_verification': True,
+                            'email': user.email,
+                        },
                         status=status.HTTP_403_FORBIDDEN
                     )
                 refresh = RefreshToken.for_user(user)
@@ -53,10 +89,10 @@ class LoginView(APIView):
                 }, status=status.HTTP_200_OK)
             return Response({'success': False, 'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         except CustomUser.DoesNotExist:
-            return Response({'success': False, 'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'success': False, 'message': 'No account found with this email'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response(
-                {'success': False, 'message': f'Login error: {str(e)}'}, 
+                {'success': False, 'message': f'Login error: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -77,9 +113,11 @@ class RegisterView(APIView):
             email=email,
             password=password,
             username=username or email.split('@')[0],
-            User_Role=role
+            User_Role=role,
+            email_verified=False,
         )
-        # If the user is an Officer, create a corresponding Officer record
+
+        # Create Officer record if role is Officer
         try:
             if role == 'Officer':
                 from departments.models import Officer as DeptOfficer
@@ -91,23 +129,91 @@ class RegisterView(APIView):
                     phone=getattr(user, 'mobile_number', '') or ''
                 )
         except Exception:
-            # Non-critical: continue even if Officer creation fails
             pass
-        
-        # Auto-login after signup
-        refresh = RefreshToken.for_user(user)
-        
+
+        # Generate and send OTP
+        otp = EmailOTP.generate(user)
+        sent = _send_otp_email(email, otp)
+
         return Response({
             'success': True,
-            'message': 'User registered successfully',
+            'message': 'Registration successful. Please check your email for the OTP to verify your account.',
+            'email': email,
+            'otp_sent': sent,
+            'requires_verification': True,
+        }, status=status.HTTP_201_CREATED)
+
+class VerifyEmailOTP(APIView):
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        otp   = request.data.get('otp', '').strip()
+
+        if not email or not otp:
+            return Response({'success': False, 'message': 'Email and OTP are required'}, status=400)
+
+        try:
+            user = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
+            return Response({'success': False, 'message': 'User not found'}, status=404)
+
+        if user.email_verified:
+            # Already verified — just log them in
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'success': True,
+                'message': 'Email already verified.',
+                'access_token': str(refresh.access_token),
+                'refresh_token': str(refresh),
+                'user': {'email': user.email, 'username': user.username, 'name': user.get_full_name() or user.email, 'role': user.User_Role}
+            })
+
+        try:
+            record = EmailOTP.objects.get(user=user)
+        except EmailOTP.DoesNotExist:
+            return Response({'success': False, 'message': 'OTP not found. Please request a new one.'}, status=400)
+
+        if not record.is_valid():
+            return Response({'success': False, 'message': 'OTP has expired. Please request a new one.'}, status=400)
+
+        if record.otp != otp:
+            return Response({'success': False, 'message': 'Invalid OTP. Please try again.'}, status=400)
+
+        # Mark verified
+        user.email_verified = True
+        user.save(update_fields=['email_verified'])
+        record.delete()
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'success': True,
+            'message': 'Email verified successfully! Welcome to CivicTrack.',
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh),
-            'user': {
-                'email': user.email,
-                'username': user.username,
-                'role': user.User_Role
-            }
-        }, status=status.HTTP_201_CREATED)
+            'user': {'email': user.email, 'username': user.username, 'name': user.get_full_name() or user.email, 'role': user.User_Role}
+        })
+
+
+class ResendOTP(APIView):
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        if not email:
+            return Response({'success': False, 'message': 'Email is required'}, status=400)
+        try:
+            user = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
+            return Response({'success': False, 'message': 'No account found with this email'}, status=404)
+
+        if user.email_verified:
+            return Response({'success': False, 'message': 'Email is already verified'}, status=400)
+
+        otp  = EmailOTP.generate(user)
+        sent = _send_otp_email(email, otp)
+        return Response({
+            'success': True,
+            'message': 'A new OTP has been sent to your email.' if sent else 'OTP generated but email could not be sent. Check server email config.',
+            'otp_sent': sent,
+        })
+
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]

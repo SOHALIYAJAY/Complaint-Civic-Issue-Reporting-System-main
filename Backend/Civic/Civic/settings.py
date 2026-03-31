@@ -217,5 +217,16 @@ SIMPLE_JWT = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
-# LOGIN_REDIRECT_URL = '/'
-# LOGOUT_REDIRECT_URL = '/' 
+# Email Configuration (Gmail SMTP)
+# Steps to set up:
+# 1. Go to your Gmail account → Settings → Security
+# 2. Enable 2-Step Verification
+# 3. Go to Security → App Passwords → Generate a new App Password
+# 4. Replace the values below with your Gmail and the generated App Password
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'civictrack.civic@gmail.com'   # Your Gmail address
+EMAIL_HOST_PASSWORD = 'psgrbqukbgzjobdk'  # Gmail App Password (not your login password)
+DEFAULT_FROM_EMAIL = '<civictrack.civic@gmail.com>'                    

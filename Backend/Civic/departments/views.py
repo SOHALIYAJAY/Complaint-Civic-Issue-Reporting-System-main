@@ -46,6 +46,31 @@ def _dept_complaint_qs(dept):
     )
 
 
+# ─── Public department list (no auth — used by raise-complaint form) ─────────
+
+@api_view(['GET'])
+def department_list_public(request):
+    """
+    Returns all departments as a simple list for the raise-complaint dropdown.
+    No authentication required.
+    """
+    try:
+        depts = Department.objects.all().order_by('name')
+        data = [
+            {
+                'id': d.id,
+                'name': d.get_category_display(),
+                'code': d.category,
+                'email': d.contact_email,
+                'phone': d.contact_phone,
+            }
+            for d in depts
+        ]
+        return Response(data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
 # ─── Department statistics (public / admin) ───────────────────────────────────
 
 @api_view(['GET'])

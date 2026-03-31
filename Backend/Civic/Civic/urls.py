@@ -22,10 +22,10 @@ from django.views.generic import RedirectView
 from complaints.views import createcomplaint
 from complaints.district_views import DistrictDetailView
 from Civic import views
-from Civic.views import getcomplaint,getcomplaintlimit,getpubliccomplaints,compinfo,complaintofficer,officerprofile,officerkpi,adminallcomplaintcart,adimncomplaints,ComplaintDelete,assigncomp,crateofficer,CategoriesList,CategoryDelete,adminstats,TrackComplaint,ComplaintStatus,OfficerDelete,OfficerUpdate,OfficerAnalytics,Logout,UserMonthlyRegistrations,admindashboardcard,UserRoleDistribution,ComplaintStatusTrends,CivicUserActivityView,DepartmentList
-from accounts.views import RegisterView, LoginView, LogoutView, GoogleLoginView, UserDetail, UpdateUserDetails, UserListCreateView, UserRetrieveUpdateDeleteView, ChangePasswordView, UserActivityView, ToggleTwoFactorView, UserComplaintsView, TestAPIView, AdminProfileView, AdminUpdateProfileView, AdminSystemSettingsView
+from Civic.views import getcomplaint,getcomplaintlimit,getpubliccomplaints,compinfo,complaintofficer,officerprofile,officerkpi,adminallcomplaintcart,adimncomplaints,ComplaintDelete,assigncomp,crateofficer,CategoriesList,CategoryDelete,adminstats,TrackComplaint,ComplaintStatus,OfficerDelete,OfficerUpdate,OfficerAnalytics,Logout,UserMonthlyRegistrations,admindashboardcard,UserRoleDistribution,ComplaintStatusTrends,CivicUserActivityView,DepartmentList,UserEmailList
+from accounts.views import RegisterView, LoginView, LogoutView, GoogleLoginView, UserDetail, UpdateUserDetails, UserListCreateView, UserRetrieveUpdateDeleteView, ChangePasswordView, UserActivityView, ToggleTwoFactorView, UserComplaintsView, TestAPIView, AdminProfileView, AdminUpdateProfileView, AdminSystemSettingsView, VerifyEmailOTP, ResendOTP
 from contact_us.views import ContactUSview
-from departments.views import OfficerDetail, department_profile, department_officers, department_complaints, department_performance, update_department_profile, department_dashboard, departments_overview, department_statistics
+from departments.views import OfficerDetail, department_profile, department_officers, department_complaints, department_performance, update_department_profile, department_dashboard, departments_overview, department_statistics, department_list_public
 from departments.admin_urls import urlpatterns as department_admin_urls
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -48,7 +48,9 @@ urlpatterns = [
     path('api/getcompinfo/',compinfo.as_view(),name='compinfo'),
     path('api/complaintinfo/',views.complaintinfo.as_view(),name='complaintinfo'),
     path('api/district/<str:district_name>/', DistrictDetailView.as_view(), name='district-detail'),
-    path('api/register/', RegisterView.as_view(),name='register'),
+    path('api/register/', RegisterView.as_view(), name='register'),
+    path('api/verify-email/', VerifyEmailOTP.as_view(), name='verify-email'),
+    path('api/resend-otp/', ResendOTP.as_view(), name='resend-otp'),
     path('api/test/', TestAPIView.as_view(), name='test-api'),
     path('api/login/', LoginView.as_view(),name='login'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
@@ -115,6 +117,8 @@ urlpatterns = [
     path('api/department/officers/', department_officers, name='department-officers'),
     path('api/department/complaints/', department_complaints, name='department-complaints'),
     path('api/department/performance/', department_performance, name='department-performance'),
+    path('api/department/list/', department_list_public, name='department-list-public'),
+    path('api/users/emails/', views.UserEmailList.as_view(), name='user-email-list'),
     path('api/department/update-profile/', update_department_profile, name='update-department-profile'),
     path('api/department/upload-image/', views.DepartmentUploadImage.as_view(), name='department-upload-image'),
     path('api/UserDistrictWise/',views.UserDistrictWise.as_view(),name='UserDistrictWise'),

@@ -95,9 +95,9 @@ class getpubliccomplaints(ListAPIView):
 @permission_classes([IsAuthenticated])
 def complaintsinfo(request):
     total_comp = Complaint.objects.filter(user=request.user).count()
-    resolved_comp = Complaint.objects.filter(status='resolved' , user=request.user).count()
-    pending_comp = Complaint.objects.filter(status='Pending' , user=request.user).count()
-    inprogress_comp = Complaint.objects.filter(status='in-progress' , user=request.user).count()
+    resolved_comp = Complaint.objects.filter(status='Completed', user=request.user).count()
+    pending_comp = Complaint.objects.filter(status='Pending', user=request.user).count()
+    inprogress_comp = Complaint.objects.filter(status='In Process', user=request.user).count()
     
     return Response({
         'total_comp': total_comp,
@@ -139,9 +139,9 @@ class compinfo(APIView):
     
     def get(self,request):
         total_comp = Complaint.objects.filter(user=self.request.user).count()
-        resolved_comp = Complaint.objects.filter(status='resolved', user=self.request.user).count()
-        pending_comp = Complaint.objects.filter(status='Pending',user=self.request.user).count()
-        In_progress_comp = Complaint.objects.filter(status='in-progress',user=self.request.user).count()
+        resolved_comp = Complaint.objects.filter(status='Completed', user=self.request.user).count()
+        pending_comp = Complaint.objects.filter(status='Pending', user=self.request.user).count()
+        In_progress_comp = Complaint.objects.filter(status='In Process', user=self.request.user).count()
         total_categories = Category.objects.all().count()
         return Response({
             'total_complaints': total_comp,
@@ -158,9 +158,9 @@ class complaintinfo(APIView):
         try:
             # Get overall statistics for public display
             total_comp = Complaint.objects.all().count()
-            resolved_comp = Complaint.objects.filter(status='resolved').count()
+            resolved_comp = Complaint.objects.filter(status='Completed').count()
             pending_comp = Complaint.objects.filter(status='Pending').count()
-            in_progress_comp = Complaint.objects.filter(status='in-progress').count()
+            in_progress_comp = Complaint.objects.filter(status='In Process').count()
             total_categories = Category.objects.all().count()
             total_users = CustomUser.objects.all().count()
             total_departments = Department.objects.all().count()
@@ -298,8 +298,8 @@ class DepartmentDashboardStats(APIView):
 
             total = complaints.count()
             pending = complaints.filter(status='Pending').count()
-            in_progress = complaints.filter(status='in-progress').count()
-            resolved = complaints.filter(status='resolved').count()
+            in_progress = complaints.filter(status='In Process').count()
+            resolved = complaints.filter(status='Completed').count()
 
             # Officer workload
             officers = Officer.objects.all()
@@ -343,7 +343,7 @@ class DepartmentDashboardStats(APIView):
                     'time': comp.current_time.strftime('%Y-%m-%d %H:%M') if comp.current_time else '',
                     'officer': comp.officer_id.name if comp.officer_id else 'Unassigned'
                 })
-            for comp in complaints.filter(status='resolved').order_by('-current_time')[:2]:
+            for comp in complaints.filter(status='Completed').order_by('-current_time')[:2]:
                 recent_activity.append({
                     'id': f'resolution_{comp.id}',
                     'type': 'resolution',
@@ -423,10 +423,10 @@ class officerprofile(APIView):
             officer = Officer.objects.get(officer_id=officer_id)
             officer_serializer = OfficerSerializer(officer)
 
-            resolved_comp = Complaint.objects.filter(officer_id=officer_id, status='resolved').count()
+            resolved_comp = Complaint.objects.filter(officer_id=officer_id, status='Completed').count()
             total_comp = Complaint.objects.filter(officer_id=officer_id).count()
             pending_comp = Complaint.objects.filter(officer_id=officer_id, status='Pending').count()
-            in_progress_comp = Complaint.objects.filter(officer_id=officer_id, status='in-progress').count()
+            in_progress_comp = Complaint.objects.filter(officer_id=officer_id, status='In Process').count()
 
             assigned_complaints = Complaint.objects.filter(officer_id=officer_id)
             complaints_serializer = ComplaintSerializer(assigned_complaints, many=True)
@@ -448,13 +448,13 @@ class officerkpi(APIView):
         total_officers = Officer.objects.all().count()
         active_officers = Officer.objects.filter(is_available=True).count()
         total_assigned = Complaint.objects.exclude(officer_id=None).count()
-        resolved_comp = Complaint.objects.filter(status='resolved').count()
+        resolved_comp = Complaint.objects.filter(status='Completed').count()
         total_comp = Complaint.objects.all().count()
         sla_compliance = (resolved_comp / total_comp * 100) if total_comp > 0 else 0
 
         overloaded = 0
         for officer in Officer.objects.all():
-            active_count = Complaint.objects.filter(officer_id=officer.officer_id).exclude(status='resolved').count()
+            active_count = Complaint.objects.filter(officer_id=officer.officer_id).exclude(status='Completed').count()
             if active_count > 20:
                 overloaded += 1
 
@@ -471,9 +471,9 @@ class adminallcomplaintcart(APIView):
     def get(self, request):
         total_comp = Complaint.objects.all().count()
         Pending_comp = Complaint.objects.filter(status='Pending').count()
-        resolved_comp = Complaint.objects.filter(status='resolved').count()
-        inprogress_comp = Complaint.objects.filter(status='in-progress').count()
-        rejected_comp = Complaint.objects.filter(status='rejected').count()
+        resolved_comp = Complaint.objects.filter(status='Completed').count()
+        inprogress_comp = Complaint.objects.filter(status='In Process').count()
+        rejected_comp = 0
         sla_compliance = (resolved_comp / total_comp * 100) if total_comp > 0 else 0
 
         return Response({
@@ -512,12 +512,14 @@ class adimncomplaints(ListAPIView):
                 queryset = queryset.filter(Category__name=department)
         if status and status != 'all':
             status_map = {
-                'in-progress': 'in-progress',
-                'in_progress': 'in-progress',
-                'inprogress': 'in-progress',
-                'In Process': 'in-progress',
-                'resolved': 'resolved',
-                'Completed': 'resolved',
+                'in-progress': 'In Process',
+                'in_progress': 'In Process',
+                'inprogress': 'In Process',
+                'In Process': 'In Process',
+                'resolved': 'Completed',
+                'Completed': 'Completed',
+                'Pending': 'Pending',
+                'pending': 'Pending',
             }
             normalized = status_map.get(status, status)
             queryset = queryset.filter(status=normalized)
@@ -790,10 +792,10 @@ class admindashboardcard(APIView):
         try:
             # Get all complaints statistics
             total_complaints = Complaint.objects.all().count()
-            resolved_complaints = Complaint.objects.filter(status='resolved').count()
+            resolved_complaints = Complaint.objects.filter(status='Completed').count()
             pending_complaints = Complaint.objects.filter(status='Pending').count()
-            inprogress_complaints = Complaint.objects.filter(status='in-progress').count()
-            rejected_complaints = 0  # Default to 0 since 'rejected' is not in CHOICE_STATUS
+            inprogress_complaints = Complaint.objects.filter(status='In Process').count()
+            rejected_complaints = 0
             
             return Response({
                 'total_complaints': total_complaints,
@@ -965,29 +967,25 @@ class CategoryList(ListAPIView):
 class TotalCategories(APIView):
     def get(self, request):
         try:
-            print("DEBUG: TotalCategories endpoint called")
-            
-            # Get all categories and count complaints for each
-            categories = Category.objects.all()
-            result = []
-            
-            for category in categories:
-                # Count complaints using the foreign key relationship
-                count = Complaint.objects.filter(Category_id=category.id).count()
-                result.append({
-                    'name': category.name,
-                    'total_comp': count
-                })
-                print(f"DEBUG: Category '{category.name}' has {count} complaints")
-            
-            print(f"DEBUG: Returning {len(result)} categories")
-            return Response(result)
-            
+            # Count complaints per category, ordered by count descending
+            # Include ALL categories that have at least 1 complaint
+            from django.db.models import Count
+            results = (
+                Complaint.objects
+                .values('Category__name', 'Category__id')
+                .annotate(total=Count('id'))
+                .filter(total__gt=0)
+                .order_by('-total')
+            )
+            data = [
+                {
+                    'name': r['Category__name'] or 'Uncategorized',
+                    'total_comp': r['total']
+                }
+                for r in results
+            ]
+            return Response(data)
         except Exception as e:
-            print(f"Error in TotalCategories: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            # Return empty list on error to prevent frontend crashes
             return Response([])
 
 class TestCategories(APIView):
@@ -1101,9 +1099,9 @@ class ComplaintStatus(APIView):
                 
             status_counts = {
                 'Pending': Complaint.objects.filter(status='Pending', user=request.user).count(),
-                'In Progress': Complaint.objects.filter(status='in-progress', user=request.user).count(),
-                'Resolved': Complaint.objects.filter(status='resolved', user=request.user).count(),
-                'Rejected': Complaint.objects.filter(status='rejected', user=request.user).count(),
+                'In Progress': Complaint.objects.filter(status='In Process', user=request.user).count(),
+                'Resolved': Complaint.objects.filter(status='Completed', user=request.user).count(),
+                'Rejected': 0,
             }
             return Response(status_counts)
         except Exception as e:
@@ -1255,8 +1253,8 @@ class ComplaintPriorityDistribution(APIView):
             
             # Get complaint distribution by status
             pending_status = Complaint.objects.filter(status='Pending').count()
-            inprogress_status = Complaint.objects.filter(status='in-progress').count()
-            resolved_status = Complaint.objects.filter(status='resolved').count()
+            inprogress_status = Complaint.objects.filter(status='In Process').count()
+            resolved_status = Complaint.objects.filter(status='Completed').count()
             
             # Get monthly complaint trends (last 6 months)
             from django.db.models import Count
@@ -1319,7 +1317,7 @@ class OfficerAnalytics(APIView):
             # Officers with active complaints
             officers_with_complaints = Complaint.objects.filter(
                 officer_id__isnull=False,
-                status__in=['Pending', 'in-progress']
+                status__in=['Pending', 'In Process']
             ).values('officer_id').distinct().count()
             
             # Category-wise officer distribution - include ALL categories
@@ -1339,7 +1337,7 @@ class OfficerAnalytics(APIView):
                 # Count active complaints in this category
                 active_complaints = Complaint.objects.filter(
                     Category=category,
-                    status__in=['Pending', 'in-progress']
+                    status__in=['Pending', 'In Process']
                 ).count()
                 
                 # Include ALL categories, even with 0 officers
@@ -1356,7 +1354,7 @@ class OfficerAnalytics(APIView):
                 # Count only active complaints
                 active_complaints = Complaint.objects.filter(
                     officer_id=officer.officer_id,
-                    status__in=['Pending', 'in-progress']
+                    status__in=['Pending', 'In Process']
                 ).count()
                 
                 workload_data.append({
@@ -1554,9 +1552,9 @@ class DepartmentUserProfile(APIView):
             try:
                 user_complaints = Complaint.objects.filter(officer_id=user)
                 total_complaints = user_complaints.count()
-                resolved_complaints = user_complaints.filter(status='resolved').count()
+                resolved_complaints = user_complaints.filter(status='Completed').count()
                 pending_complaints = user_complaints.filter(status='Pending').count()
-                in_progress_complaints = user_complaints.filter(status='in-progress').count()
+                in_progress_complaints = user_complaints.filter(status='In Process').count()
                 
                 # Calculate performance score
                 performance_score = 0
@@ -1654,6 +1652,26 @@ class DepartmentUserProfile(APIView):
                 'error': str(e),
                 'message': 'Failed to update profile'
             }, status=500)
+
+
+class UserEmailList(APIView):
+    """Lightweight endpoint returning all user emails for officer creation dropdown."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        users = CustomUser.objects.all().order_by('email').values(
+            'id', 'email', 'first_name', 'last_name', 'User_Role'
+        )
+        data = [
+            {
+                'id': u['id'],
+                'email': u['email'],
+                'name': f"{u['first_name']} {u['last_name']}".strip() or u['email'],
+                'role': u['User_Role'] or 'Civic-User',
+            }
+            for u in users
+        ]
+        return Response(data)
 
 
 class UserDistrictWise(APIView):

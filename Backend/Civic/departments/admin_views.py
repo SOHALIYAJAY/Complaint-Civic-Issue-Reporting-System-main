@@ -118,6 +118,52 @@ def department_detail(request, pk):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def department_logged_in_users(request):
+    """
+    Returns users who have logged in recently (last_login is not null),
+    with their role and department info.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+
+    users = CustomUser.objects.filter(
+        last_login__isnull=False
+    ).order_by('-last_login')[:50]
+
+    data = []
+    for u in users:
+        # Resolve department
+        dept_name = None
+        try:
+            if hasattr(u, 'headed_department') and u.headed_department.exists():
+                dept_name = u.headed_department.first().get_category_display()
+            elif hasattr(u, 'departments') and u.departments.exists():
+                dept_name = u.departments.first().get_category_display()
+        except Exception:
+            pass
+
+        # Active = logged in within last 30 minutes
+        is_online = (
+            u.last_login and
+            (timezone.now() - u.last_login).total_seconds() < 1800
+        )
+
+        data.append({
+            'id': u.id,
+            'name': u.get_full_name() or u.username,
+            'email': u.email,
+            'role': u.User_Role or 'Civic-User',
+            'department': dept_name,
+            'last_login': u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else None,
+            'is_active': u.is_active,
+            'is_online': is_online,
+        })
+
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def department_stats(request):
     """
     Get department statistics for dashboard

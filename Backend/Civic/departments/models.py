@@ -43,7 +43,7 @@ class Department(models.Model):
 class Officer(models.Model):
     officer_id = models.CharField(max_length=10, primary_key=True)
     name = models.CharField(max_length=100)
-    email = models.EmailField()
+    email = models.EmailField(blank=True, default='')
     phone = models.CharField(max_length=15)
     is_available = models.BooleanField(default=True)
     department = models.ForeignKey(
