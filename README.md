@@ -68,7 +68,10 @@ Officer → Update complaint status
 Admin → Full system control
 
 
+
 ✨ Features
+
+
 
 🔐 Authentication
 
@@ -77,6 +80,7 @@ Register / Login
 Email verification
 
 Forgot / Reset password
+
 
 
 📢 Complaint Management
@@ -93,6 +97,8 @@ Media 📷
 Track complaint status timeline
 
 
+
+
 📊 Dashboards
 
 Citizen dashboard
@@ -102,6 +108,8 @@ Officer dashboard
 Admin panel
 
 
+
+
 🔔 Notifications
 
 Complaint updates
@@ -109,11 +117,15 @@ Complaint updates
 Alerts
 
 
+
+
 🏢 Department System
 
 Assign complaints
 
 Track progress
+
+
 
 
 📬 Contact Support
