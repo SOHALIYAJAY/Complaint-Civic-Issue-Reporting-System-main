@@ -32,6 +32,7 @@ Django REST API
 Database
 
 🔐 Role-Based Access
+
 Citizen → Submit & track complaints
 Officer → Update complaint status
 Admin → Full system control
