@@ -13,6 +13,8 @@ Citizens → Raise & track complaints
 
 Officers → Manage and update complaints
 
+Department head  → Manage officers and Citizens
+
 Admins → Monitor system & manage departments
 
 
